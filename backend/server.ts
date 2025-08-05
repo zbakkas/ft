@@ -25,7 +25,7 @@ interface Player {
   id: string;
   paddleY: number;
   score: number;
-  position: 'left' | 'right';
+  playerIndex: number; // 0 for player 1, 1 for player 2
   socket: any;
 }
 
@@ -76,41 +76,41 @@ const updateGameState = (room: GameRoom) => {
   }
 
   const players = Array.from(gameState.players.values());
-  const leftPlayer = players.find(p => p.position === 'left');
-  const rightPlayer = players.find(p => p.position === 'right');
+  const player1 = players.find(p => p.playerIndex === 0);
+  const player2 = players.find(p => p.playerIndex === 1);
 
-  if (leftPlayer && rightPlayer) {
-    // Ball collision with left paddle
+  if (player1 && player2) {
+    // Ball collision with player 1 paddle (left side)
     if (
       gameState.ballX <= PADDLE_WIDTH &&
-      gameState.ballY >= leftPlayer.paddleY &&
-      gameState.ballY <= leftPlayer.paddleY + PADDLE_HEIGHT
+      gameState.ballY >= player1.paddleY &&
+      gameState.ballY <= player1.paddleY + PADDLE_HEIGHT
     ) {
       gameState.ballVelocityX = Math.abs(gameState.ballVelocityX);
-      const hitPos = (gameState.ballY - leftPlayer.paddleY) / PADDLE_HEIGHT;
+      const hitPos = (gameState.ballY - player1.paddleY) / PADDLE_HEIGHT;
       gameState.ballVelocityY = (hitPos - 0.5) * BALL_SPEED * 2;
     }
 
-    // Ball collision with right paddle
+    // Ball collision with player 2 paddle (right side)
     if (
       gameState.ballX >= CANVAS_WIDTH - PADDLE_WIDTH - BALL_SIZE &&
-      gameState.ballY >= rightPlayer.paddleY &&
-      gameState.ballY <= rightPlayer.paddleY + PADDLE_HEIGHT
+      gameState.ballY >= player2.paddleY &&
+      gameState.ballY <= player2.paddleY + PADDLE_HEIGHT
     ) {
       gameState.ballVelocityX = -Math.abs(gameState.ballVelocityX);
-      const hitPos = (gameState.ballY - rightPlayer.paddleY) / PADDLE_HEIGHT;
+      const hitPos = (gameState.ballY - player2.paddleY) / PADDLE_HEIGHT;
       gameState.ballVelocityY = (hitPos - 0.5) * BALL_SPEED * 2;
     }
 
-    // Ball goes off left side (right player scores)
+    // Ball goes off left side (player 2 scores)
     if (gameState.ballX < 0) {
-      rightPlayer.score++;
+      player2.score++;
       resetBall(gameState);
     }
 
-    // Ball goes off right side (left player scores)
+    // Ball goes off right side (player 1 scores)
     if (gameState.ballX > CANVAS_WIDTH) {
-      leftPlayer.score++;
+      player1.score++;
       resetBall(gameState);
     }
   }
@@ -123,25 +123,26 @@ const resetBall = (gameState: GameState) => {
   gameState.ballVelocityY = (Math.random() > 0.5 ? 1 : -1) * BALL_SPEED;
 };
 
-// Broadcast game state to all players in room
+// Broadcast game state to each player with their perspective
 const broadcastGameState = (room: GameRoom) => {
-  const gameData = {
-    type: 'gameState',
-    gameState: {
-      ballX: room.gameState.ballX,
-      ballY: room.gameState.ballY,
-      gameRunning: room.gameState.gameRunning,
-      players: Array.from(room.gameState.players.values()).map(p => ({
-        id: p.id,
-        paddleY: p.paddleY,
-        score: p.score,
-        position: p.position
-      }))
-    }
-  };
-
   room.gameState.players.forEach(player => {
     try {
+      const gameData = {
+        type: 'gameState',
+        gameState: {
+          ballX: room.gameState.ballX,
+          ballY: room.gameState.ballY,
+          gameRunning: room.gameState.gameRunning,
+          players: Array.from(room.gameState.players.values()).map(p => ({
+            id: p.id,
+            paddleY: p.paddleY,
+            score: p.score,
+            playerIndex: p.playerIndex
+          }))
+        },
+        yourPlayerIndex: player.playerIndex
+      };
+
       player.socket.send(JSON.stringify(gameData));
     } catch (error) {
       console.error('Error sending to player:', error);
@@ -175,7 +176,7 @@ fastify.register(async function (fastify) {
     const playerId = Math.random().toString(36).substring(7);
     console.log(`Player ${playerId} connected`);
 
-    connection.socket.on('message', (message) => {
+    connection.socket.on('message', (message: { toString: () => string; }) => {
       try {
         const data = JSON.parse(message.toString());
         
@@ -232,14 +233,14 @@ const handleJoinGame = (connection: any, playerId: string, gameId: string) => {
     return;
   }
 
-  // Determine player position
-  const position = room.players.size === 0 ? 'left' : 'right';
+  // Determine player index (0 for first, 1 for second)
+  const playerIndex = room.players.size;
   
   const player: Player = {
     id: playerId,
     paddleY: CANVAS_HEIGHT / 2 - PADDLE_HEIGHT / 2,
     score: 0,
-    position,
+    playerIndex,
     socket: connection.socket
   };
 
@@ -250,7 +251,7 @@ const handleJoinGame = (connection: any, playerId: string, gameId: string) => {
   connection.socket.send(JSON.stringify({
     type: 'playerJoined',
     playerId,
-    position,
+    playerIndex,
     gameState: {
       ballX: room.gameState.ballX,
       ballY: room.gameState.ballY,
@@ -259,9 +260,10 @@ const handleJoinGame = (connection: any, playerId: string, gameId: string) => {
         id: p.id,
         paddleY: p.paddleY,
         score: p.score,
-        position: p.position
+        playerIndex: p.playerIndex
       }))
-    }
+    },
+    yourPlayerIndex: playerIndex
   }));
 
   // If room is full, notify all players
@@ -275,7 +277,7 @@ const handleJoinGame = (connection: any, playerId: string, gameId: string) => {
     });
   }
 
-  console.log(`Player ${playerId} joined room ${gameId} as ${position} player`);
+  console.log(`Player ${playerId} joined room ${gameId} as player ${playerIndex + 1}`);
 };
 
 const handlePaddleMove = (playerId: string, direction: 'up' | 'down') => {

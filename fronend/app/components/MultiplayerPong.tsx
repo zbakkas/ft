@@ -7,7 +7,7 @@ interface Player {
   id: string;
   paddleY: number;
   score: number;
-  position: 'left' | 'right';
+  playerIndex: number;
 }
 
 interface GameState {
@@ -38,7 +38,7 @@ const MultiplayerPongGame: React.FC = () => {
 
   const [connectionState, setConnectionState] = useState<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected');
   const [playerId, setPlayerId] = useState<string>('');
-  const [playerPosition, setPlayerPosition] = useState<'left' | 'right' | null>(null);
+  const [playerIndex, setPlayerIndex] = useState<number | null>(null);
   const [gameId, setGameId] = useState<string>('');
   const [statusMessage, setStatusMessage] = useState<string>('');
 
@@ -56,7 +56,9 @@ const MultiplayerPongGame: React.FC = () => {
     setConnectionState('connecting');
     setStatusMessage('Connecting to server...');
 
-    const ws = new WebSocket('ws://localhost:3001/ws');
+    // Get WebSocket URL from environment variable or use localhost as fallback
+    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://10.11.6.1:3001/ws';
+    const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
     ws.onopen = () => {
@@ -94,9 +96,9 @@ const MultiplayerPongGame: React.FC = () => {
     switch (data.type) {
       case 'playerJoined':
         setPlayerId(data.playerId);
-        setPlayerPosition(data.position);
+        setPlayerIndex(data.playerIndex);
         setGameState(data.gameState);
-        setStatusMessage(`You are the ${data.position} player. Waiting for opponent...`);
+        setStatusMessage(`You are Player ${data.playerIndex + 1}. Waiting for opponent...`);
         break;
 
       case 'roomReady':
@@ -143,6 +145,7 @@ const MultiplayerPongGame: React.FC = () => {
   // Handle continuous key presses
   useEffect(() => {
     const handleMovement = () => {
+      // All players use the same keys - W/S or Arrow Up/Down
       if (keysPressed.current.has('w') || keysPressed.current.has('ArrowUp')) {
         sendPaddleMove('up');
       }
@@ -156,13 +159,10 @@ const MultiplayerPongGame: React.FC = () => {
     return () => clearInterval(intervalId);
   }, [sendPaddleMove]);
 
-  // Keyboard event handlers
+  // Keyboard event handlers - same keys for all players
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Only handle movement keys for the correct player
-      if (playerPosition === 'left' && (e.key === 'w' || e.key === 's')) {
-        keysPressed.current.add(e.key);
-      } else if (playerPosition === 'right' && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+      if (e.key === 'w' || e.key === 's' || e.key === 'ArrowUp' || e.key === 'ArrowDown') {
         keysPressed.current.add(e.key);
       }
     };
@@ -178,7 +178,7 @@ const MultiplayerPongGame: React.FC = () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [playerPosition]);
+  }, []);
 
   // Game control functions
   const startGame = useCallback(() => {
@@ -199,7 +199,7 @@ const MultiplayerPongGame: React.FC = () => {
     }
   }, []);
 
-  // Drawing function
+  // Drawing function with perspective flip for player 2
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -211,6 +211,16 @@ const MultiplayerPongGame: React.FC = () => {
     ctx.fillStyle = '#000000';
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
+    // Determine if we need to flip the view (player 2 sees flipped perspective)
+    const isFlipped = playerIndex === 1;
+
+    if (isFlipped) {
+      // Flip the canvas horizontally for player 2
+      ctx.save();
+      ctx.scale(-1, 1);
+      ctx.translate(-CANVAS_WIDTH, 0);
+    }
+
     // Draw center line
     ctx.strokeStyle = '#ffffff';
     ctx.setLineDash([5, 15]);
@@ -220,38 +230,54 @@ const MultiplayerPongGame: React.FC = () => {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // Draw paddles and scores
-    ctx.fillStyle = '#ffffff';
-    const leftPlayer = gameState.players.find(p => p.position === 'left');
-    const rightPlayer = gameState.players.find(p => p.position === 'right');
+    // Get players
+    const player1 = gameState.players.find(p => p.playerIndex === 0);
+    const player2 = gameState.players.find(p => p.playerIndex === 1);
 
-    if (leftPlayer) {
-      // Highlight current player's paddle
-      ctx.fillStyle = leftPlayer.id === playerId ? '#00ff00' : '#ffffff';
-      ctx.fillRect(0, leftPlayer.paddleY, PADDLE_WIDTH, PADDLE_HEIGHT);
+    // Draw paddles
+    ctx.fillStyle = '#ffffff';
+    
+    if (player1) {
+      // Player 1 paddle (always on left in normal view, right in flipped view)
+      ctx.fillStyle = player1.id === playerId ? '#00ff00' : '#ffffff';
+      ctx.fillRect(0, player1.paddleY, PADDLE_WIDTH, PADDLE_HEIGHT);
     }
 
-    if (rightPlayer) {
-      // Highlight current player's paddle
-      ctx.fillStyle = rightPlayer.id === playerId ? '#00ff00' : '#ffffff';
-      ctx.fillRect(CANVAS_WIDTH - PADDLE_WIDTH, rightPlayer.paddleY, PADDLE_WIDTH, PADDLE_HEIGHT);
+    if (player2) {
+      // Player 2 paddle (always on right in normal view, left in flipped view)
+      ctx.fillStyle = player2.id === playerId ? '#00ff00' : '#ffffff';
+      ctx.fillRect(CANVAS_WIDTH - PADDLE_WIDTH, player2.paddleY, PADDLE_WIDTH, PADDLE_HEIGHT);
     }
 
     // Draw ball
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(gameState.ballX, gameState.ballY, BALL_SIZE, BALL_SIZE);
 
-    // Draw scores
+    // Draw scores (need to handle text flipping)
     ctx.font = '36px monospace';
     ctx.textAlign = 'center';
     ctx.fillStyle = '#ffffff';
-    if (leftPlayer) {
-      ctx.fillText(leftPlayer.score.toString(), CANVAS_WIDTH / 4, 50);
+
+    if (isFlipped) {
+      // Restore context to draw text normally
+      ctx.restore();
+      
+      // For flipped view, show current player's score on left, opponent on right
+      const myScore = playerIndex === 1 ? (player2?.score || 0) : (player1?.score || 0);
+      const opponentScore = playerIndex === 1 ? (player1?.score || 0) : (player2?.score || 0);
+      
+      ctx.fillText(myScore.toString(), CANVAS_WIDTH / 4, 50);
+      ctx.fillText(opponentScore.toString(), (3 * CANVAS_WIDTH) / 4, 50);
+    } else {
+      // Normal view
+      if (player1) {
+        ctx.fillText(player1.score.toString(), CANVAS_WIDTH / 4, 50);
+      }
+      if (player2) {
+        ctx.fillText(player2.score.toString(), (3 * CANVAS_WIDTH) / 4, 50);
+      }
     }
-    if (rightPlayer) {
-      ctx.fillText(rightPlayer.score.toString(), (3 * CANVAS_WIDTH) / 4, 50);
-    }
-  }, [gameState, playerId]);
+  }, [gameState, playerId, playerIndex]);
 
   // Render canvas
   useEffect(() => {
@@ -279,19 +305,19 @@ const MultiplayerPongGame: React.FC = () => {
     }
     setConnectionState('disconnected');
     setPlayerId('');
-    setPlayerPosition(null);
+    setPlayerIndex(null);
     setStatusMessage('');
   }, []);
 
-  const leftPlayer = gameState.players.find(p => p.position === 'left');
-  const rightPlayer = gameState.players.find(p => p.position === 'right');
+  const player1 = gameState.players.find(p => p.playerIndex === 0);
+  const player2 = gameState.players.find(p => p.playerIndex === 1);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 p-4 game-container">
       <div className="mb-6">
         <h1 className="text-4xl font-bold text-white mb-2 text-center">MULTIPLAYER PONG</h1>
         <p className="text-gray-300 text-center">
-          Real-time multiplayer Pong game
+          Real-time multiplayer Pong - Each player sees themselves on the left
         </p>
       </div>
 
@@ -388,25 +414,28 @@ const MultiplayerPongGame: React.FC = () => {
 
           <div className="text-white text-center mb-4">
             <div className="text-2xl font-bold mb-2">
-              {leftPlayer?.score || 0} - {rightPlayer?.score || 0}
+              {/* Show scores from player's perspective */}
+              {playerIndex === 0 && `${player1?.score || 0} - ${player2?.score || 0}`}
+              {playerIndex === 1 && `${player2?.score || 0} - ${player1?.score || 0}`}
             </div>
             <div className="text-sm text-gray-400">
               {gameState.gameRunning ? 'Game Running' : 'Game Paused'}
             </div>
-            {playerPosition && (
+            {playerIndex !== null && (
               <div className="text-sm text-green-400 mt-1">
-                You are the {playerPosition} player
+                You are Player {playerIndex + 1} - You see yourself on the left!
               </div>
             )}
           </div>
 
           <div className="text-gray-400 text-sm max-w-md text-center">
             <p className="mb-2">
-              <strong>Controls:</strong>
+              <strong>Controls (Same for all players):</strong>
             </p>
-            <p className="mb-1">• Left Player: W (up) / S (down)</p>
-            <p className="mb-1">• Right Player: Arrow Up / Arrow Down</p>
+            <p className="mb-1">• W or Arrow Up: Move paddle up</p>
+            <p className="mb-1">• S or Arrow Down: Move paddle down</p>
             <p className="text-green-400">Your paddle is highlighted in green!</p>
+            <p className="text-yellow-400 mt-2">Each player sees themselves on the left side</p>
           </div>
         </>
       )}
