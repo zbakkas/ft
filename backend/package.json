@@ -1,0 +1,38 @@
+{
+    "name": "pong-multiplayer-server",
+    "version": "1.0.0",
+    "description": "Multiplayer Pong game server using Fastify and WebSockets",
+    "main": "dist/server.js",
+    "scripts": {
+        "build": "tsc",
+        "start": "node dist/server.js",
+        "dev": "tsx watch server.ts",
+        "lint": "eslint . --ext .ts",
+        "clean": "rm -rf dist"
+    },
+    "keywords": [
+        "pong",
+        "multiplayer",
+        "fastify",
+        "websocket",
+        "game"
+    ],
+    "author": "Your Name",
+    "license": "MIT",
+    "dependencies": {
+        "@fastify/cors": "^8.4.0",
+        "@fastify/websocket": "^8.3.1",
+        "fastify": "^4.29.1"
+    },
+    "devDependencies": {
+        "@types/node": "^20.8.0",
+        "@typescript-eslint/eslint-plugin": "^6.7.0",
+        "@typescript-eslint/parser": "^6.7.0",
+        "eslint": "^8.50.0",
+        "tsx": "^3.14.0",
+        "typescript": "^5.2.2"
+    },
+    "engines": {
+        "node": ">=18.0.0"
+    }
+}
