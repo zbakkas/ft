@@ -52,12 +52,13 @@ const MultiplayerPongGame: React.FC = () => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.close();
     }
-
+   // console.log(`Connecting to room: ${roomId}`);
     setConnectionState('connecting');
     setStatusMessage('Connecting to server...');
 
     // Get WebSocket URL from environment variable or use localhost as fallback
-    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://10.11.6.1:3001/ws';
+    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://http://localhost:3001/ws';
+   // console.log(`WebSocket UR=======L: ${wsUrl}`);
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
@@ -250,33 +251,52 @@ const MultiplayerPongGame: React.FC = () => {
     }
 
     // Draw ball
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(gameState.ballX, gameState.ballY, BALL_SIZE, BALL_SIZE);
+    ctx.fillStyle = '#eb0231';
+    ctx.beginPath();
+    ctx.arc(gameState.ballX, gameState.ballY, BALL_SIZE, BALL_SIZE, Math.PI );
+    ctx.fill();
 
     // Draw scores (need to handle text flipping)
     ctx.font = '36px monospace';
     ctx.textAlign = 'center';
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = '#50eb02';
 
+    // if (isFlipped) {
+    //   // Restore context to draw text normally
+    //   ctx.restore();
+      
+    //   // For flipped view, show current player's score on left, opponent on right
+    //   const myScore = playerIndex === 1 ? (player2?.score || 0) : (player1?.score || 0);
+    //   const opponentScore = playerIndex === 1 ? (player1?.score || 0) : (player2?.score || 0);
+      
+    //   ctx.fillText(myScore.toString(), CANVAS_WIDTH / 4, 50);
+    //   ctx.fillText(opponentScore.toString(), (3 * CANVAS_WIDTH) / 4, 50);
+    // } else {
+    //   // Normal view
+    //   if (player1) {
+    //     ctx.fillText(player1.score.toString(), CANVAS_WIDTH / 4, 50);
+    //   }
+    //   if (player2) {
+    //     ctx.fillText(player2.score.toString(), (3 * CANVAS_WIDTH) / 4, 50);
+    //   }
+    // }
+    // Restore context after flipping (if needed)
     if (isFlipped) {
-      // Restore context to draw text normally
       ctx.restore();
-      
-      // For flipped view, show current player's score on left, opponent on right
-      const myScore = playerIndex === 1 ? (player2?.score || 0) : (player1?.score || 0);
-      const opponentScore = playerIndex === 1 ? (player1?.score || 0) : (player2?.score || 0);
-      
-      ctx.fillText(myScore.toString(), CANVAS_WIDTH / 4, 50);
-      ctx.fillText(opponentScore.toString(), (3 * CANVAS_WIDTH) / 4, 50);
-    } else {
-      // Normal view
-      if (player1) {
-        ctx.fillText(player1.score.toString(), CANVAS_WIDTH / 4, 50);
-      }
-      if (player2) {
-        ctx.fillText(player2.score.toString(), (3 * CANVAS_WIDTH) / 4, 50);
-      }
     }
+    
+    // Draw scores
+    ctx.font = '36px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#50eb02';
+    
+    const myScore = playerIndex === 0 ? (player1?.score || 0) : (player2?.score || 0);
+    const opponentScore = playerIndex === 0 ? (player2?.score || 0) : (player1?.score || 0);
+    
+    // Always draw my score on the left, opponent on the right
+    ctx.fillText(myScore.toString(), CANVAS_WIDTH / 4, 50);
+    ctx.fillText(opponentScore.toString(), (3 * CANVAS_WIDTH) / 4, 50);
+
   }, [gameState, playerId, playerIndex]);
 
   // Render canvas
@@ -413,7 +433,7 @@ const MultiplayerPongGame: React.FC = () => {
           </div>
 
           <div className="text-white text-center mb-4">
-            <div className="text-2xl font-bold mb-2">
+            <div className="text-2xl font-bold mb-2">e
               {/* Show scores from player's perspective */}
               {playerIndex === 0 && `${player1?.score || 0} - ${player2?.score || 0}`}
               {playerIndex === 1 && `${player2?.score || 0} - ${player1?.score || 0}`}

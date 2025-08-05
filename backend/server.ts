@@ -18,8 +18,8 @@ const CANVAS_HEIGHT = 400;
 const PADDLE_WIDTH = 10;
 const PADDLE_HEIGHT = 80;
 const BALL_SIZE = 10;
-const PADDLE_SPEED = 5;
-const BALL_SPEED = 3;
+const PADDLE_SPEED = 6;
+const BALL_SPEED = 7;
 
 interface Player {
   id: string;
