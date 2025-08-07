@@ -171,8 +171,10 @@ const stopGameLoop = (room: GameRoom) => {
 };
 
 // WebSocket route
-fastify.register(async function (fastify) {
-  fastify.get('/ws', { websocket: true }, (connection, req) => {
+fastify.register(async function (fastify)
+{
+  fastify.get('/ws', { websocket: true }, (connection, req) => 
+  {
     const playerId = Math.random().toString(36).substring(7);
     console.log(`Player ${playerId} connected`);
 

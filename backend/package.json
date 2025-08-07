@@ -7,6 +7,7 @@
         "build": "tsc",
         "start": "node dist/server.js",
         "dev": "tsx watch server.ts",
+        "test": "tsx watch test.ts",
         "lint": "eslint . --ext .ts",
         "clean": "rm -rf dist"
     },
