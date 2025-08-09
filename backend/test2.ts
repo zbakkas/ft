@@ -1,6 +1,7 @@
 import Fastify from 'fastify';
 import fastifyWebsocket from '@fastify/websocket';
 import cors from '@fastify/cors';
+import { CANCELLED } from 'dns';
 
 
 const fastify = Fastify({ logger: true });
@@ -32,6 +33,16 @@ const start = async () => {
 start();
 //////////////////////////////////////////
 
+let CANVAS_WIDTH =500;
+let CANVAS_HEIGHT =400;
+
+let PADDLE_WIDTH =10;
+let PADDLE_HEIGHT =80;
+let BALL_SIZE =16;
+let BALL_SPEED =6;
+
+
+
 interface Player {
   id: string;
   name: string;
@@ -41,6 +52,10 @@ interface Player {
   socket: any;
 }
 interface GameState {
+  ballX: number;
+  ballY: number;
+  ballVelocityX: number; // Horizontal speed
+  ballVelocityY: number; // Vertical speed
   players: Map<string, Player>;
   gameRunning: boolean;
   gameId: string;
@@ -172,7 +187,7 @@ const createGameForTwoPlayers = (player1: { playerId: string; socket: any }, pla
   // Auto-start the game after a brief delay
   setTimeout(() => {
     room.gameState.gameRunning = true;
-    // startGameLoop(room);
+    startGameLoop(room);
     // broadcastGameState(room);
     
     room.players.forEach(player => {
@@ -186,7 +201,10 @@ const createGameForTwoPlayers = (player1: { playerId: string; socket: any }, pla
 
 // Create initial game state
 const createGameState = (gameId: string): GameState => ({
-
+  ballX: CANVAS_WIDTH / 2,
+  ballY: CANVAS_HEIGHT / 2,
+  ballVelocityX: BALL_SPEED,
+  ballVelocityY: BALL_SPEED,
   players: new Map(),
   gameRunning: false,
   gameId
@@ -209,6 +227,8 @@ fastify.register(async function (fastify) {
         switch (data.type) {
           case 'paddleMove':
             handlePaddleMove(playerId, data.direction,data.PADDLE_SPEED,data.paddleHeight,data.gameHeight);
+            CANVAS_HEIGHT = data.gameHeight;
+            CANVAS_WIDTH = data.gameWidth;
             break;
             
           case 'startGame':
@@ -306,15 +326,46 @@ const handlePaddleMove = (playerId: string, direction: 'up' | 'down',PADDLE_SPEE
   broadcastGameState(playerRoom);
 };
 
+// // Broadcast game state to each player with their perspective
+// const broadcastGameState = (room: GameRoom) => {
+//   room.gameState.players.forEach(player => {
+//     try {
+//       const gameData = {
+//         type: 'gameState',
+//         gameState: {
+//           ballX: room.gameState.ballX,
+//           ballY: room.gameState.ballY,
+//           gameRunning: room.gameState.gameRunning,
+//           players: Array.from(room.gameState.players.values()).map(p => ({
+//             id: p.id,
+//             paddleY: p.paddleY,
+//             score: p.score,
+//             playerIndex: p.playerIndex
+//           }))
+//         },
+//         yourPlayerIndex: player.playerIndex
+//       };
+
+//       player.socket.send(JSON.stringify(gameData));
+//     } catch (error) {
+//       console.error('Error sending to player:', error);
+//     }
+//   });
+// };
 // Broadcast game state to each player with their perspective
 const broadcastGameState = (room: GameRoom) => {
   room.gameState.players.forEach(player => {
     try {
+      // For player 2 (playerIndex 1), just reverse the ball's X position
+      const ballX = player.playerIndex === 1 
+        ? CANVAS_WIDTH - room.gameState.ballX 
+        : room.gameState.ballX;
+
       const gameData = {
         type: 'gameState',
         gameState: {
-          // ballX: room.gameState.ballX,
-          // ballY: room.gameState.ballY,
+          ballX: ballX,
+          ballY: room.gameState.ballY, // Keep Y the same
           gameRunning: room.gameState.gameRunning,
           players: Array.from(room.gameState.players.values()).map(p => ({
             id: p.id,
@@ -395,4 +446,82 @@ const stopGameLoop = (room: GameRoom) => {
     clearInterval(room.gameLoop);
     room.gameLoop = undefined;
   }
+};
+
+
+// Update game physics
+const updateGameState = (room: GameRoom) => {
+  const { gameState } = room;
+  
+  if (!gameState.gameRunning) return;
+
+  // Update ball position
+  gameState.ballX += gameState.ballVelocityX;
+  gameState.ballY += gameState.ballVelocityY;
+
+  // Ball collision with top and bottom walls
+  if (gameState.ballY <= 0 || gameState.ballY >= CANVAS_HEIGHT - BALL_SIZE) 
+  {
+    gameState.ballVelocityY = -gameState.ballVelocityY;
+  }
+
+  const players = Array.from(gameState.players.values());
+  const player1 = players.find(p => p.playerIndex === 0);
+  const player2 = players.find(p => p.playerIndex === 1);
+
+  if (player1 && player2) {
+    // Ball collision with player 1 paddle (left side)
+    if (
+      gameState.ballX <= PADDLE_WIDTH &&
+      gameState.ballY >= player1.paddleY &&
+      gameState.ballY <= player1.paddleY + PADDLE_HEIGHT
+    ) {
+      gameState.ballVelocityX = Math.abs(gameState.ballVelocityX);
+      const hitPos = (gameState.ballY - player1.paddleY) / PADDLE_HEIGHT;
+      gameState.ballVelocityY = (hitPos - 0.5) * BALL_SPEED * 2;
+    }
+
+    // Ball collision with player 2 paddle (right side)
+    if (
+      gameState.ballX >= CANVAS_WIDTH - PADDLE_WIDTH - BALL_SIZE &&
+      gameState.ballY >= player2.paddleY &&
+      gameState.ballY <= player2.paddleY + PADDLE_HEIGHT
+    ) {
+      gameState.ballVelocityX = -Math.abs(gameState.ballVelocityX);
+      const hitPos = (gameState.ballY - player2.paddleY) / PADDLE_HEIGHT;
+      gameState.ballVelocityY = (hitPos - 0.5) * BALL_SPEED * 2;
+    }
+
+    // Ball goes off left side (player 2 scores)
+    if (gameState.ballX < 0) {
+      player2.score++;
+      resetBall(gameState);
+    }
+
+    // Ball goes off right side (player 1 scores)
+    if (gameState.ballX > CANVAS_WIDTH) {
+      player1.score++;
+      resetBall(gameState);
+    }
+  }
+};
+
+const resetBall = (gameState: GameState) => {
+  gameState.ballX = CANVAS_WIDTH / 2;
+  gameState.ballY = CANVAS_HEIGHT / 2;
+  gameState.ballVelocityX = (Math.random() > 0.5 ? 1 : -1) * BALL_SPEED;
+  gameState.ballVelocityY = (Math.random() > 0.5 ? 1 : -1) * BALL_SPEED;
+};
+
+
+// Start game loop for a room
+const startGameLoop = (room: GameRoom) => {
+  if (room.gameLoop) {
+    clearInterval(room.gameLoop);
+  }
+
+  room.gameLoop = setInterval(() => {
+    updateGameState(room);
+    broadcastGameState(room);
+  }, 1000 / 60); // 60 FPS
 };

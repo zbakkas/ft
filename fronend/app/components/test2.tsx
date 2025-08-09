@@ -5,8 +5,9 @@ const CANVAS_WIDTH = 500;
 const CANVAS_HEIGHT = 400;
 const PADDLE_WIDTH = 10;
 const PADDLE_HEIGHT = 80;
-const BALL_SIZE = 10;
+const BALL_SIZE = 15;
 const PADDLE_SPEED = 5;
+let BALL_SPEED =6;
 
 export default function MultiplayerPongGame_test2() {
   const wsRef = useRef<WebSocket | null>(null);
@@ -17,6 +18,7 @@ export default function MultiplayerPongGame_test2() {
   const [roomId, setRoomId] = useState<string | null>(null);
   const [messagee, setMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  
 
   // Paddle state
   const [P_me_paddleY, setP_me_PaddleY] = useState<number>(200); // Starting position
@@ -25,6 +27,14 @@ export default function MultiplayerPongGame_test2() {
   const [player_N, setPlayer_N] = useState<number | null>(null);
   const [gameRunning, setGameRunning] = useState<boolean>(false);
   const lastPaddleMove = useRef<{ direction: string; time: number } | null>(null);
+
+  //BALL state
+  const [ballX, setBallX] = useState<number>(CANVAS_WIDTH / 2);
+  const [ballY, setBallY] = useState<number>(CANVAS_HEIGHT / 2);
+
+  // Scores
+  const [myScore, setMyScore] = useState<number>(0);
+  const [opponentScore, setOpponentScore] = useState<number>(0);
 
   const connectToServer = () => 
   {
@@ -126,9 +136,19 @@ export default function MultiplayerPongGame_test2() {
           const myPlayer = data.gameState.players.find((p: any) => p.id === myId);
           const opponent = data.gameState.players.find((p: any) => p.id !== myId);
       
-          if (myPlayer) setP_me_PaddleY(myPlayer.paddleY);
-          if (opponent) setP_2_PaddleY(opponent.paddleY);
+          if (myPlayer)
+          {
+            setP_me_PaddleY(myPlayer.paddleY);
+            setMyScore(myPlayer.score);
+          } 
+          if (opponent) 
+          {
+            setP_2_PaddleY(opponent.paddleY);
+            setOpponentScore(opponent.score);
+          }
         }
+        setBallX(data.gameState.ballX);
+        setBallY(data.gameState.ballY);
         break;
 
       default:
@@ -232,6 +252,7 @@ export default function MultiplayerPongGame_test2() {
       direction,
       gameHeight: CANVAS_HEIGHT,
       paddleHeight: PADDLE_HEIGHT,
+      gameWidth: CANVAS_WIDTH,
       PADDLE_SPEED,
     }));
 
@@ -344,7 +365,7 @@ export default function MultiplayerPongGame_test2() {
       {/* Game Area with Paddle */}
       {gameRunning && (
         <div
-          className=" relative bg-black border-2 border-white rotate-0 items-center justify-center  m-auto"
+          className=" relative bg-black border border-white rotate-0 items-center justify-center  m-auto"
           style={{ width: CANVAS_WIDTH, height: CANVAS_HEIGHT }}
           
         >
@@ -352,7 +373,7 @@ export default function MultiplayerPongGame_test2() {
           <div
             className="absolute bg-green-400"
             style={{
-              left: '5px',
+              left: '0px',
               top: `${P_me_paddleY}px`,
               width: `${PADDLE_WIDTH}px`,
               height: `${PADDLE_HEIGHT}px`,
@@ -362,12 +383,28 @@ export default function MultiplayerPongGame_test2() {
           <div
             className="absolute bg-white"
             style={{
-              left: `${CANVAS_WIDTH - PADDLE_WIDTH - 5}px`,
+              left: `${CANVAS_WIDTH - PADDLE_WIDTH - 0}px`,
               top: `${P_2_paddleY}px`,
               width: `${PADDLE_WIDTH}px`,
               height: `${PADDLE_HEIGHT}px`,
             }}
           />
+
+           {/* Ball */}
+          <div
+            className="absolute bg-red-500 rounded-full z-1"
+            style={{
+              left: `${(ballX - BALL_SIZE / 2)}px`,
+              top: `${(ballY - BALL_SIZE / 2)}px`,
+              width: `${BALL_SIZE}px`,
+              height: `${BALL_SIZE}px`,
+            }}
+          />
+         {/* Scores */}
+           <div className="flex justify-center gap-8 mb-4 text-xl font-bold">
+          <div>You: {myScore}</div>
+          <div>Opponent: {opponentScore}</div>
+        </div>
 
    {/* Center Line */}
     <div
