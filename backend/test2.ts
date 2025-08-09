@@ -113,7 +113,7 @@ const createGameForTwoPlayers = (player1: { playerId: string; socket: any }, pla
     name: "Player 11",
     score: 0,
     playerIndex: 0,
-    paddleY: 0, // Initial position for player 1
+    paddleY: 200, // Initial position for player 1
     socket: player1.socket
   };
 
@@ -122,7 +122,7 @@ const createGameForTwoPlayers = (player1: { playerId: string; socket: any }, pla
     name: "Player 22",
     score: 0,
     playerIndex: 1,
-    paddleY:0,
+    paddleY:200,
     socket: player2.socket
   };
 
@@ -208,7 +208,7 @@ fastify.register(async function (fastify) {
         
         switch (data.type) {
           case 'paddleMove':
-            handlePaddleMove(playerId, data.direction,data.gameHeight,data.paddleHeight,data.PADDLE_SPEED);
+            handlePaddleMove(playerId, data.direction,data.PADDLE_SPEED,data.paddleHeight,data.gameHeight);
             break;
             
           case 'startGame':
@@ -235,46 +235,102 @@ fastify.register(async function (fastify) {
 });
 
 
-// UPDATE the handlePaddleMove function
-const handlePaddleMove = (playerId: string, direction: 'up' | 'down' ,gameHeight :number ,paddleHeight:number ,PADDLE_SPEED:number) => {
-  const room = findRoomByPlayerId(playerId);
-  if (!room || !room.gameState.gameRunning) return;
+// // UPDATE the handlePaddleMove function
+// const handlePaddleMove = (playerId: string, direction: 'up' | 'down' ,gameHeight :number ,paddleHeight:number ,PADDLE_SPEED:number) => {
+//   const room = findRoomByPlayerId(playerId);
+//   if (!room || !room.gameState.gameRunning) return;
 
-  const player = room.players.get(playerId);
-  if (!player) return;
+//   const player = room.players.get(playerId);
+//   if (!player) return;
 
-  // Validate paddle position (prevent cheating)
-  // const gameHeight = 400;
-  // const paddleHeight = 180;
-  // const clampedPaddleY = Math.max(0, Math.min(gameHeight - paddleHeight, paddleY));
+//   // Validate paddle position (prevent cheating)
+//   // const gameHeight = 400;
+//   // const paddleHeight = 180;
+//   // const clampedPaddleY = Math.max(0, Math.min(gameHeight - paddleHeight, paddleY));
 
 
-  // Update paddle position
-  let clampedPaddleY = player.paddleY;
-  if (direction === 'up' && player.paddleY > 0) {
-    clampedPaddleY = Math.max(0, player.paddleY - PADDLE_SPEED);
-  } else if (direction === 'down' && player.paddleY < gameHeight - paddleHeight) {
-    clampedPaddleY = Math.min(gameHeight - paddleHeight, player.paddleY + PADDLE_SPEED);
+//   // Update paddle position
+//   let clampedPaddleY = player.paddleY;
+//   if (direction === 'up' && player.paddleY > 0) {
+//     clampedPaddleY = Math.max(0, player.paddleY - PADDLE_SPEED);
+//   } else if (direction === 'down' && player.paddleY < gameHeight - paddleHeight) {
+//     clampedPaddleY = Math.min(gameHeight - paddleHeight, player.paddleY + PADDLE_SPEED);
+//   }
+
+//   // Update player's paddleY
+//   player.paddleY = clampedPaddleY;
+
+//   // Broadcast paddle position to other players in the room
+//   room.players.forEach(p => {
+//     if (p.id !== playerId) 
+//     { // Don't send back to the sender
+//       p.socket.send(JSON.stringify({
+//         type: 'paddleUpdate',
+//         playerId: playerId,
+//         paddleY: clampedPaddleY,
+//         timestamp: Date.now()
+//       }));
+//     }
+//   });
+
+//   // Optional: Log for debugging
+//   console.log(`Player ${playerId} moved paddle to ${clampedPaddleY}`);
+// };
+
+const handlePaddleMove = (playerId: string, direction: 'up' | 'down',PADDLE_SPEED:number,PADDLE_HEIGHT:number,CANVAS_HEIGHT:number) => {
+  // Find the room containing this player
+  let playerRoom: GameRoom | undefined;
+  let player: Player | undefined;
+
+  for (const room of gameRooms.values()) {
+    player = room.players.get(playerId);
+    if (player) {
+      playerRoom = room;
+      break;
+    }
   }
 
-  // Update player's paddleY
-  player.paddleY = clampedPaddleY;
+  if (!playerRoom || !player) return;
 
-  // Broadcast paddle position to other players in the room
-  room.players.forEach(p => {
-    if (p.id !== playerId) 
-    { // Don't send back to the sender
-      p.socket.send(JSON.stringify({
-        type: 'paddleUpdate',
-        playerId: playerId,
-        paddleY: clampedPaddleY,
-        timestamp: Date.now()
-      }));
+  // Update paddle position
+  if (direction === 'up' && player.paddleY > 0) {
+    player.paddleY = Math.max(0, player.paddleY - PADDLE_SPEED);
+    
+  } else if (direction === 'down' && player.paddleY < CANVAS_HEIGHT - PADDLE_HEIGHT) {
+    player.paddleY = Math.min(CANVAS_HEIGHT - PADDLE_HEIGHT, player.paddleY + PADDLE_SPEED);
+  }
+  console.log(`Player ${playerId} paddle moved ${direction}. New position: ${player.paddleY} . speed: ${PADDLE_SPEED} . height: ${PADDLE_HEIGHT} . canvasHeight: ${CANVAS_HEIGHT}`);
+
+  
+  // Broadcast updated state
+  broadcastGameState(playerRoom);
+};
+
+// Broadcast game state to each player with their perspective
+const broadcastGameState = (room: GameRoom) => {
+  room.gameState.players.forEach(player => {
+    try {
+      const gameData = {
+        type: 'gameState',
+        gameState: {
+          // ballX: room.gameState.ballX,
+          // ballY: room.gameState.ballY,
+          gameRunning: room.gameState.gameRunning,
+          players: Array.from(room.gameState.players.values()).map(p => ({
+            id: p.id,
+            paddleY: p.paddleY,
+            score: p.score,
+            playerIndex: p.playerIndex
+          }))
+        },
+        yourPlayerIndex: player.playerIndex
+      };
+
+      player.socket.send(JSON.stringify(gameData));
+    } catch (error) {
+      console.error('Error sending to player:', error);
     }
   });
-
-  // Optional: Log for debugging
-  console.log(`Player ${playerId} moved paddle to ${clampedPaddleY}`);
 };
 
 

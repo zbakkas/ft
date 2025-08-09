@@ -12,19 +12,22 @@ export default function MultiplayerPongGame_test2() {
   const wsRef = useRef<WebSocket | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
   const [playerId, setPlayerId] = useState<string | null>(null);
+  const playerIdRef = useRef<string | null>(null);
+
   const [roomId, setRoomId] = useState<string | null>(null);
   const [messagee, setMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   // Paddle state
-  const [P_me_paddleY, setP_me_PaddleY] = useState<number>(0); // Starting position
-  const [P_2_paddleY, setP_2_PaddleY] = useState<number>(0); // Starting position
+  const [P_me_paddleY, setP_me_PaddleY] = useState<number>(200); // Starting position
+  const [P_2_paddleY, setP_2_PaddleY] = useState<number>(200); // Starting position
   const keysRef = useRef<Set<string>>(new Set());
   const [player_N, setPlayer_N] = useState<number | null>(null);
   const [gameRunning, setGameRunning] = useState<boolean>(false);
   const lastPaddleMove = useRef<{ direction: string; time: number } | null>(null);
 
-  const connectToServer = () => {
+  const connectToServer = () => 
+  {
     if (connectionStatus === 'connected') {
       // If already connected, disconnect
       if (wsRef.current) {
@@ -52,41 +55,7 @@ export default function MultiplayerPongGame_test2() {
 
       try {
         const data = JSON.parse(event.data);
-
-        // Handle opponent paddle position updates
-        if (data.type === 'paddleUpdate') {
-          if (data.playerId !== playerId) {
-            // Only update if it's not our own paddle
-            setP_2_PaddleY(data.paddleY);
-          }
-        }
-
-        if (data.type === 'matchFound') {
-          setMessage(data.message);
-          setRoomId(data.gameId);
-          setIsLoading(false);
-          setPlayer_N(data.playerIndex + 1);
-          console.log(`Match found! Room ID: ${data.gameId}`);
-        }
-
-        if (data.type === 'playerId') {
-          setPlayerId(data.playerId);
-          console.log(`🎮 Your player ID: ${data.playerId}`);
-        }
-        // if(data.type === 'waitingForOpponent') {
-        //  setMessage(data.message);
-        //   console.log(` ${data.message}`);
-        // }
-        if (data.type === 'opponentDisconnected') {
-          setMessage(data.message);
-          setIsLoading(true);
-          setRoomId(null);
-        }
-        if (data.type === 'gameStarted') {
-          setMessage(data.message);
-          setIsLoading(false);
-          setGameRunning(true);
-        }
+        handleServerMessage(data);
       } catch (error) {
         console.error('Error parsing message:', error);
       }
@@ -109,76 +78,226 @@ export default function MultiplayerPongGame_test2() {
       wsRef.current = null;
     };
   };
+  const handleServerMessage = useCallback((data: any) => {
+    switch (data.type) {
+      case 'matchFound':
+        setMessage(data.message);
+        setRoomId(data.gameId);
+        setIsLoading(false);
+        setPlayer_N(data.playerIndex + 1);
+        console.log(`Match found! Room ID: ${data.gameId}`);
+
+        if (data.players) {
+          const myPlayer = data.players.find((p: { id: string | null; }) => p.id === playerId);
+          const opponent = data.players.find((p: { id: string | null; }) => p.id !== playerId);
+          
+          if (myPlayer) setP_me_PaddleY(myPlayer.paddleY);
+          if (opponent) setP_2_PaddleY(opponent.paddleY);
+          console.log('Game state updated:', { myPlayer, opponent });
+        }
+        break;
+      case 'opponentDisconnected':
+        setMessage(data.message);
+        setIsLoading(true);
+        setRoomId(null);
+        console.log('Opponent disconnected:', data.message);
+        break;
+      case 'gameStarted':
+        setMessage(data.message);
+        setIsLoading(false);
+        setGameRunning(true);
+        console.log('Game started:', data.message);
+        break;
+      case 'waitingForOpponent':
+        setMessage(data.message);
+        console.log(`Waiting for opponent: ${data.message}`);
+        break;
+      case 'playerId':
+          playerIdRef.current = data.playerId; // ✅ instant availability
+          setPlayerId(data.playerId);          // ✅ triggers re-render for UI
+          console.log(`🎮 Your player ID in B: ${playerId}`);
+          console.log(`🎮 Your player ID in S: ${data.playerId}`);
+        break;
+      case 'gameState':
+        const myId = playerIdRef.current;
+        if (!myId) return; // now this will work after first message
+      
+        if (data.gameState?.players) {
+          const myPlayer = data.gameState.players.find((p: any) => p.id === myId);
+          const opponent = data.gameState.players.find((p: any) => p.id !== myId);
+      
+          if (myPlayer) setP_me_PaddleY(myPlayer.paddleY);
+          if (opponent) setP_2_PaddleY(opponent.paddleY);
+        }
+        break;
+
+      default:
+        console.log('Unknown message type:', data.type);
+    }
+  }, [playerId]);
+
+  // // Send paddle movement to server (with throttling)
+  // const sendPaddleMove = useCallback((direction: 'up' | 'down', newY: number) => {
+  //   if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+
+  //   const now = Date.now();
+  //   if (
+  //     lastPaddleMove.current &&
+  //     lastPaddleMove.current.direction === direction &&
+  //     now - lastPaddleMove.current.time < 16
+  //   ) {
+  //     return;
+  //   }
+
+  //   wsRef.current.send(
+  //     JSON.stringify({
+  //       type: 'paddleMove',
+  //       direction,
+  //       gameHeight: CANVAS_HEIGHT,
+  //       paddleHeight: PADDLE_HEIGHT,
+  //       PADDLE_SPEED,
+  //     })
+  //   );
+
+  //   lastPaddleMove.current = { direction, time: now };
+  // }, []);
+
+  // // FIXED: Only update local paddle position if the move is valid, and only send movement if an actual change occurs
+  // useEffect(() => {
+  //   const updatePaddle = () => {
+  //     let newY = P_me_paddleY;
+  //     let moved = false;
+  //     if (keysRef.current.has('w') || keysRef.current.has('arrowup')) {
+  //       if (newY > 0) {
+  //         newY = Math.max(0, newY - PADDLE_SPEED);
+  //         sendPaddleMove('up', newY);
+  //         moved = true;
+  //       }
+  //     }
+  //     if (keysRef.current.has('s') || keysRef.current.has('arrowdown')) {
+  //       if (newY < CANVAS_HEIGHT - PADDLE_HEIGHT) {
+  //         newY = Math.min(CANVAS_HEIGHT - PADDLE_HEIGHT, newY + PADDLE_SPEED);
+  //         sendPaddleMove('down', newY);
+  //         moved = true;
+  //       }
+  //     }
+  //     if (moved && newY !== P_me_paddleY) {
+  //       setP_me_PaddleY(newY);
+  //     }
+  //   };
+  //   const intervalId = setInterval(updatePaddle, 16); // ~60fps
+
+  //   return () => clearInterval(intervalId);
+  // }, [sendPaddleMove, P_me_paddleY]);
+
+  // // Keyboard event handlers
+  // useEffect(() => {
+  //   const handleKeyDown = (e: KeyboardEvent) => {
+  //     if (
+  //       e.key === 'w' ||
+  //       e.key === 's' ||
+  //       e.key === 'ArrowUp' ||
+  //       e.key === 'ArrowDown'
+  //     ) {
+  //       keysRef.current.add(e.key.toLowerCase());
+  //     }
+  //   };
+
+  //   const handleKeyUp = (e: KeyboardEvent) => {
+  //     keysRef.current.delete(e.key.toLowerCase());
+  //   };
+
+  //   window.addEventListener('keydown', handleKeyDown);
+  //   window.addEventListener('keyup', handleKeyUp);
+
+  //   return () => {
+  //     window.removeEventListener('keydown', handleKeyDown);
+  //     window.removeEventListener('keyup', handleKeyUp);
+  //   };
+  // }, []);
 
   // Send paddle movement to server (with throttling)
-  const sendPaddleMove = useCallback((direction: 'up' | 'down', newY: number) => {
+  const sendPaddleMove = useCallback((direction: 'up' | 'down') => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
 
     const now = Date.now();
-    if (
-      lastPaddleMove.current &&
-      lastPaddleMove.current.direction === direction &&
-      now - lastPaddleMove.current.time < 16
-    ) {
+    if (lastPaddleMove.current && 
+        lastPaddleMove.current.direction === direction && 
+        now - lastPaddleMove.current.time < 16) { // ~60fps throttling
       return;
     }
 
-    wsRef.current.send(
-      JSON.stringify({
-        type: 'paddleMove',
-        direction,
-        gameHeight: CANVAS_HEIGHT,
-        paddleHeight: PADDLE_HEIGHT,
-        PADDLE_SPEED,
-      })
-    );
+    wsRef.current.send(JSON.stringify({
+      type: 'paddleMove',
+      direction,
+      gameHeight: CANVAS_HEIGHT,
+      paddleHeight: PADDLE_HEIGHT,
+      PADDLE_SPEED,
+    }));
 
     lastPaddleMove.current = { direction, time: now };
   }, []);
 
-  // FIXED: Only update local paddle position if the move is valid, and only send movement if an actual change occurs
+  // const sendPaddleMove = useCallback((direction: 'up' | 'down') => {
+  //   if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+  
+  //   // Update local paddle position immediately
+  //   setP_me_PaddleY(prev => {
+  //     let newY = prev;
+  //     if (direction === 'up') newY = Math.max(0, prev - PADDLE_SPEED);
+  //     else if (direction === 'down') newY = Math.min(CANVAS_HEIGHT - PADDLE_HEIGHT, prev + PADDLE_SPEED);
+  //     return newY;
+  //   });
+  
+  //   // Throttle sending to server
+  //   const now = Date.now();
+  //   if (
+  //     lastPaddleMove.current &&
+  //     lastPaddleMove.current.direction === direction &&
+  //     now - lastPaddleMove.current.time < 16
+  //   ) {
+  //     return;
+  //   }
+  
+  //   wsRef.current.send(JSON.stringify({
+  //     type: 'paddleMove',
+  //     direction,
+  //     gameHeight: CANVAS_HEIGHT,
+  //     paddleHeight: PADDLE_HEIGHT,
+  //     PADDLE_SPEED,
+  //   }));
+  
+  //   lastPaddleMove.current = { direction, time: now };
+  // }, []);
+  
+
+  // Handle continuous key presses
   useEffect(() => {
-    const updatePaddle = () => {
-      let newY = P_me_paddleY;
-      let moved = false;
-      if (keysRef.current.has('w') || keysRef.current.has('arrowup')) {
-        if (newY > 0) {
-          newY = Math.max(0, newY - PADDLE_SPEED);
-          sendPaddleMove('up', newY);
-          moved = true;
-        }
+    const handleMovement = () => {
+      if (keysRef.current.has('w') || keysRef.current.has('ArrowUp')) {
+        sendPaddleMove('up');
       }
-      if (keysRef.current.has('s') || keysRef.current.has('arrowdown')) {
-        if (newY < CANVAS_HEIGHT - PADDLE_HEIGHT) {
-          newY = Math.min(CANVAS_HEIGHT - PADDLE_HEIGHT, newY + PADDLE_SPEED);
-          sendPaddleMove('down', newY);
-          moved = true;
-        }
-      }
-      if (moved && newY !== P_me_paddleY) {
-        setP_me_PaddleY(newY);
+      if (keysRef.current.has('s') || keysRef.current.has('ArrowDown')) {
+        sendPaddleMove('down');
       }
     };
-    const intervalId = setInterval(updatePaddle, 16); // ~60fps
+
+    const intervalId = setInterval(handleMovement, 16); // ~60fps
 
     return () => clearInterval(intervalId);
-  }, [sendPaddleMove, P_me_paddleY]);
+  }, [sendPaddleMove]);
 
   // Keyboard event handlers
-  useEffect(() => {
+  useEffect(() => 
+  {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (
-        e.key === 'w' ||
-        e.key === 's' ||
-        e.key === 'ArrowUp' ||
-        e.key === 'ArrowDown'
-      ) {
-        keysRef.current.add(e.key.toLowerCase());
+      if (e.key === 'w' || e.key === 's' || e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        keysRef.current.add(e.key);
       }
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
-      keysRef.current.delete(e.key.toLowerCase());
+      keysRef.current.delete(e.key);
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -225,13 +344,13 @@ export default function MultiplayerPongGame_test2() {
       {/* Game Area with Paddle */}
       {gameRunning && (
         <div
-          className="relative bg-black border-2 border-white rotate-0 items-center justify-center  m-auto"
+          className=" relative bg-black border-2 border-white rotate-0 items-center justify-center  m-auto"
           style={{ width: CANVAS_WIDTH, height: CANVAS_HEIGHT }}
-          tabIndex={0}
+          
         >
           {/* Left Paddle (Your paddle) */}
           <div
-            className="absolute bg-white"
+            className="absolute bg-green-400"
             style={{
               left: '5px',
               top: `${P_me_paddleY}px`,
@@ -250,10 +369,11 @@ export default function MultiplayerPongGame_test2() {
             }}
           />
 
-          {/* Controls instruction */}
-          <div className="absolute bottom-2 left-2 text-white text-sm">
-            Use W/S or Arrow Keys to move paddle
-          </div>
+   {/* Center Line */}
+    <div
+      className="absolute h-full left-1/2 transform -translate-x-1/2 border-l-2 border-gray-400 border-dashed"
+    />
+        
         </div>
       )}
     </div>
