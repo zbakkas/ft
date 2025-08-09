@@ -1,6 +1,4 @@
-// client/components/MultiplayerPong.tsx
-'use client';
-
+"use client";
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 
 interface Player {
@@ -23,7 +21,7 @@ const PADDLE_WIDTH = 10;
 const PADDLE_HEIGHT = 80;
 const BALL_SIZE = 10;
 
-const MultiplayerPongGame: React.FC = () => {
+const AutoMatchmakingPong: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const keysPressed = useRef<Set<string>>(new Set());
@@ -36,41 +34,30 @@ const MultiplayerPongGame: React.FC = () => {
     players: [],
   });
 
-  const [connectionState, setConnectionState] = useState<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected');
+  const [connectionState, setConnectionState] = useState<'disconnected' | 'connecting' | 'waiting' | 'matched' | 'playing' | 'error'>('disconnected');
   const [playerId, setPlayerId] = useState<string>('');
   const [playerIndex, setPlayerIndex] = useState<number | null>(null);
   const [gameId, setGameId] = useState<string>('');
   const [statusMessage, setStatusMessage] = useState<string>('');
+  const [waitingCount, setWaitingCount] = useState<number>(0);
 
-  // Generate random game ID
-  const generateGameId = useCallback(() => {
-    return Math.random().toString(36).substring(2, 8).toUpperCase();
-  }, []);
-
-  // Connect to WebSocket server
-  const connectToServer = useCallback((roomId: string) => {
+  // Connect to WebSocket server and start matchmaking
+  const connectAndFindMatch = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.close();
     }
-   // console.log(`Connecting to room: ${roomId}`);
+
     setConnectionState('connecting');
-    setStatusMessage('Connecting to server...');
+    setStatusMessage('Connecting to matchmaking server...');
 
     // Get WebSocket URL from environment variable or use localhost as fallback
-    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://http://localhost:3001/ws';
-   // console.log(`WebSocket UR=======L: ${wsUrl}`);
+    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001/ws';
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
     ws.onopen = () => {
-      setConnectionState('connected');
-      setStatusMessage('Connected! Joining game...');
-      
-      // Join game room
-      ws.send(JSON.stringify({
-        type: 'joinGame',
-        gameId: roomId
-      }));
+      setConnectionState('waiting');
+      setStatusMessage('Looking for an opponent...');
     };
 
     ws.onmessage = (event) => {
@@ -85,6 +72,9 @@ const MultiplayerPongGame: React.FC = () => {
     ws.onclose = () => {
       setConnectionState('disconnected');
       setStatusMessage('Disconnected from server');
+      setPlayerId('');
+      setPlayerIndex(null);
+      setGameId('');
     };
 
     ws.onerror = () => {
@@ -95,28 +85,39 @@ const MultiplayerPongGame: React.FC = () => {
 
   const handleServerMessage = useCallback((data: any) => {
     switch (data.type) {
-      case 'playerJoined':
-        setPlayerId(data.playerId);
-        setPlayerIndex(data.playerIndex);
-        setGameState(data.gameState);
-        setStatusMessage(`You are Player ${data.playerIndex + 1}. Waiting for opponent...`);
+      case 'waitingForOpponent':
+        setConnectionState('waiting');
+        setStatusMessage(data.message);
+        setWaitingCount(data.waitingPlayers || 0);
         break;
 
-      case 'roomReady':
-        setStatusMessage(data.message);
+      case 'matchFound':
+        setPlayerId(data.playerId);
+        setPlayerIndex(data.playerIndex);
+        setGameId(data.gameId);
+        setGameState(data.gameState);
+        setConnectionState('matched');
+        setStatusMessage(data.message + ' - Game starting soon...');
+        break;
+
+      case 'gameStarted':
+        setConnectionState('playing');
+        setStatusMessage('Game in progress! Use W/S or Arrow keys to move.');
         break;
 
       case 'gameState':
         setGameState(data.gameState);
         break;
 
-      case 'playerDisconnected':
+      case 'opponentDisconnected':
         setStatusMessage(data.message);
+        setConnectionState('waiting');
         setGameState(prev => ({ ...prev, gameRunning: false }));
         break;
 
       case 'error':
         setStatusMessage(`Error: ${data.message}`);
+        setConnectionState('error');
         break;
 
       default:
@@ -146,7 +147,6 @@ const MultiplayerPongGame: React.FC = () => {
   // Handle continuous key presses
   useEffect(() => {
     const handleMovement = () => {
-      // All players use the same keys - W/S or Arrow Up/Down
       if (keysPressed.current.has('w') || keysPressed.current.has('ArrowUp')) {
         sendPaddleMove('up');
       }
@@ -160,8 +160,9 @@ const MultiplayerPongGame: React.FC = () => {
     return () => clearInterval(intervalId);
   }, [sendPaddleMove]);
 
-  // Keyboard event handlers - same keys for all players
-  useEffect(() => {
+  // Keyboard event handlers
+  useEffect(() => 
+  {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'w' || e.key === 's' || e.key === 'ArrowUp' || e.key === 'ArrowDown') {
         keysPressed.current.add(e.key);
@@ -182,12 +183,6 @@ const MultiplayerPongGame: React.FC = () => {
   }, []);
 
   // Game control functions
-  const startGame = useCallback(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: 'startGame' }));
-    }
-  }, []);
-
   const pauseGame = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ type: 'pauseGame' }));
@@ -198,6 +193,18 @@ const MultiplayerPongGame: React.FC = () => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ type: 'resetGame' }));
     }
+  }, []);
+
+  // Disconnect and return to matchmaking
+  const disconnect = useCallback(() => {
+    if (wsRef.current) {
+      wsRef.current.close();
+    }
+    setConnectionState('disconnected');
+    setPlayerId('');
+    setPlayerIndex(null);
+    setGameId('');
+    setStatusMessage('');
   }, []);
 
   // Drawing function with perspective flip for player 2
@@ -251,35 +258,11 @@ const MultiplayerPongGame: React.FC = () => {
     }
 
     // Draw ball
-    ctx.fillStyle = '#eb0231';
+    ctx.fillStyle = '#ff4444';
     ctx.beginPath();
-    ctx.arc(gameState.ballX, gameState.ballY, BALL_SIZE, BALL_SIZE, Math.PI );
+    ctx.arc(gameState.ballX, gameState.ballY, BALL_SIZE, 0, Math.PI * 2);
     ctx.fill();
 
-    // Draw scores (need to handle text flipping)
-    ctx.font = '36px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillStyle = '#50eb02';
-
-    // if (isFlipped) {
-    //   // Restore context to draw text normally
-    //   ctx.restore();
-      
-    //   // For flipped view, show current player's score on left, opponent on right
-    //   const myScore = playerIndex === 1 ? (player2?.score || 0) : (player1?.score || 0);
-    //   const opponentScore = playerIndex === 1 ? (player1?.score || 0) : (player2?.score || 0);
-      
-    //   ctx.fillText(myScore.toString(), CANVAS_WIDTH / 4, 50);
-    //   ctx.fillText(opponentScore.toString(), (3 * CANVAS_WIDTH) / 4, 50);
-    // } else {
-    //   // Normal view
-    //   if (player1) {
-    //     ctx.fillText(player1.score.toString(), CANVAS_WIDTH / 4, 50);
-    //   }
-    //   if (player2) {
-    //     ctx.fillText(player2.score.toString(), (3 * CANVAS_WIDTH) / 4, 50);
-    //   }
-    // }
     // Restore context after flipping (if needed)
     if (isFlipped) {
       ctx.restore();
@@ -301,166 +284,208 @@ const MultiplayerPongGame: React.FC = () => {
 
   // Render canvas
   useEffect(() => {
-    draw();
-  }, [draw]);
-
-  // Join game with ID
-  const joinGame = useCallback(() => {
-    if (gameId.trim()) {
-      connectToServer(gameId.trim().toUpperCase());
+    if (connectionState === 'matched' || connectionState === 'playing') {
+      draw();
     }
-  }, [gameId, connectToServer]);
-
-  // Create new game
-  const createNewGame = useCallback(() => {
-    const newGameId = generateGameId();
-    setGameId(newGameId);
-    connectToServer(newGameId);
-  }, [generateGameId, connectToServer]);
-
-  // Disconnect
-  const disconnect = useCallback(() => {
-    if (wsRef.current) {
-      wsRef.current.close();
-    }
-    setConnectionState('disconnected');
-    setPlayerId('');
-    setPlayerIndex(null);
-    setStatusMessage('');
-  }, []);
+  }, [draw, connectionState]);
 
   const player1 = gameState.players.find(p => p.playerIndex === 0);
   const player2 = gameState.players.find(p => p.playerIndex === 1);
 
+  const getConnectionStatusColor = () => {
+    switch (connectionState) {
+      case 'connected': case 'matched': case 'playing': return 'bg-green-600';
+      case 'waiting': return 'bg-yellow-600';
+      case 'connecting': return 'bg-blue-600';
+      case 'error': return 'bg-red-600';
+      default: return 'bg-gray-600';
+    }
+  };
+
+  const getConnectionStatusText = () => {
+    switch (connectionState) {
+      case 'connected': return 'CONNECTED';
+      case 'connecting': return 'CONNECTING';
+      case 'waiting': return 'SEARCHING';
+      case 'matched': return 'MATCHED';
+      case 'playing': return 'PLAYING';
+      case 'error': return 'ERROR';
+      default: return 'OFFLINE';
+    }
+  };
+
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 p-4 game-container">
-      <div className="mb-6">
-        <h1 className="text-4xl font-bold text-white mb-2 text-center">MULTIPLAYER PONG</h1>
-        <p className="text-gray-300 text-center">
-          Real-time multiplayer Pong - Each player sees themselves on the left
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 p-4">
+      <div className="mb-6 text-center">
+        <h1 className="text-4xl font-bold text-white mb-2">AUTO MATCHMAKING PONG</h1>
+        <p className="text-gray-300">
+          Automatic player matching - Just click "Find Match" and get paired instantly!
         </p>
       </div>
 
+      {/* Connection/Matchmaking Interface */}
       {connectionState === 'disconnected' && (
-        <div className="bg-gray-800 p-6 rounded-lg mb-6 w-full max-w-md">
-          <h2 className="text-xl font-bold text-white mb-4">Join or Create Game</h2>
-          
-          <div className="mb-4">
-            <label className="block text-gray-300 mb-2">Game ID:</label>
-            <input
-              type="text"
-              value={gameId}
-              onChange={(e) => setGameId(e.target.value.toUpperCase())}
-              placeholder="Enter game ID"
-              className="w-full px-3 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
-              maxLength={6}
-            />
-          </div>
-
-          <div className="flex gap-2">
-            <button
-              onClick={joinGame}
-              disabled={!gameId.trim()}
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded font-semibold hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
-            >
-              Join Game
-            </button>
-            <button
-              onClick={createNewGame}
-              className="flex-1 px-4 py-2 bg-green-600 text-white rounded font-semibold hover:bg-green-700 transition-colors"
-            >
-              Create New
-            </button>
-          </div>
+        <div className="bg-gray-800 p-8 rounded-lg mb-6 w-full max-w-md text-center">
+          <h2 className="text-2xl font-bold text-white mb-4">Ready to Play?</h2>
+          <p className="text-gray-300 mb-6">
+            Click below to automatically find an opponent and start playing!
+          </p>
+          <button
+            onClick={connectAndFindMatch}
+            className="w-full px-6 py-3 bg-green-600 text-white rounded-lg font-bold text-lg hover:bg-green-700 transition-colors"
+          >
+            🎮 Find Match
+          </button>
         </div>
       )}
 
+      {/* Waiting/Matched/Playing Interface */}
       {connectionState !== 'disconnected' && (
         <>
           <div className="mb-4 text-center">
             <div className="text-white mb-2">
-              <span className={`inline-block px-3 py-1 rounded-full text-sm ${
-                connectionState === 'connected' ? 'bg-green-600' : 
-                connectionState === 'connecting' ? 'bg-yellow-600' : 'bg-red-600'
-              }`}>
-                {connectionState.toUpperCase()}
+              <span className={`inline-block px-4 py-2 rounded-full text-sm font-bold ${getConnectionStatusColor()}`}>
+                {getConnectionStatusText()}
               </span>
               {gameId && (
                 <span className="ml-4 text-gray-300">
-                  Game ID: <span className="font-mono font-bold">{gameId}</span>
+                  Game: <span className="font-mono font-bold">{gameId}</span>
                 </span>
               )}
             </div>
+            
+            {/* Status Messages */}
             {statusMessage && (
-              <p className="text-gray-300 text-sm">{statusMessage}</p>
+              <p className="text-gray-300 text-sm mb-2">{statusMessage}</p>
+            )}
+            
+            {/* Waiting Queue Info */}
+            {connectionState === 'waiting' && waitingCount > 0 && (
+              <p className="text-yellow-400 text-sm">
+                {waitingCount} player{waitingCount !== 1 ? 's' : ''} waiting for matches
+              </p>
             )}
           </div>
 
-          <canvas
-            ref={canvasRef}
-            width={CANVAS_WIDTH}
-            height={CANVAS_HEIGHT}
-            className="border-2 border-white bg-black mb-6"
-          />
+          {/* Game Canvas */}
+          {(connectionState === 'matched' || connectionState === 'playing') && (
+            <>
+              <canvas
+                ref={canvasRef}
+                width={CANVAS_WIDTH}
+                height={CANVAS_HEIGHT}
+                className="border-2 border-white bg-black mb-6"
+              />
 
-          <div className="flex gap-4 mb-4">
-            <button
-              onClick={startGame}
-              disabled={gameState.gameRunning || gameState.players.length < 2}
-              className="px-6 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
-            >
-              Start
-            </button>
-            <button
-              onClick={pauseGame}
-              disabled={!gameState.gameRunning}
-              className="px-6 py-2 bg-yellow-600 text-white rounded-lg font-semibold hover:bg-yellow-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
-            >
-              Pause
-            </button>
-            <button
-              onClick={resetGame}
-              className="px-6 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-colors"
-            >
-              Reset
-            </button>
+              {/* Game Controls */}
+              <div className="flex gap-4 mb-4">
+                <button
+                  onClick={pauseGame}
+                  disabled={!gameState.gameRunning}
+                  className="px-6 py-2 bg-yellow-600 text-white rounded-lg font-semibold hover:bg-yellow-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
+                >
+                  {gameState.gameRunning ? 'Pause' : 'Paused'}
+                </button>
+                <button
+                  onClick={resetGame}
+                  className="px-6 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-colors"
+                >
+                  Reset
+                </button>
+              </div>
+
+              {/* Score Display */}
+              <div className="text-white text-center mb-4">
+                <div className="text-2xl font-bold mb-2">
+                  {/* Show scores from player's perspective */}
+                  {playerIndex === 0 && `${player1?.score || 0} - ${player2?.score || 0}`}
+                  {playerIndex === 1 && `${player2?.score || 0} - ${player1?.score || 0}`}
+                </div>
+                <div className="text-sm text-gray-400">
+                  {gameState.gameRunning ? 'Game Running' : 'Game Paused'}
+                </div>
+                {playerIndex !== null && (
+                  <div className="text-sm text-green-400 mt-1">
+                    You are Player {playerIndex + 1} - You see yourself on the left!
+                  </div>
+                )}
+              </div>
+
+              {/* Controls Instructions */}
+              <div className="text-gray-400 text-sm max-w-md text-center mb-4">
+                <p className="mb-2">
+                  <strong>Controls:</strong>
+                </p>
+                <p className="mb-1">• W or Arrow Up: Move paddle up</p>
+                <p className="mb-1">• S or Arrow Down: Move paddle down</p>
+                <p className="text-green-400">Your paddle is highlighted in green!</p>
+              </div>
+            </>
+          )}
+
+          {/* Disconnect Button */}
+          <div className="flex justify-center">
             <button
               onClick={disconnect}
               className="px-6 py-2 bg-gray-600 text-white rounded-lg font-semibold hover:bg-gray-700 transition-colors"
             >
-              Disconnect
+              {connectionState === 'waiting' ? 'Cancel Search' : 'Leave Game'}
             </button>
-          </div>
-
-          <div className="text-white text-center mb-4">
-            <div className="text-2xl font-bold mb-2">e
-              {/* Show scores from player's perspective */}
-              {playerIndex === 0 && `${player1?.score || 0} - ${player2?.score || 0}`}
-              {playerIndex === 1 && `${player2?.score || 0} - ${player1?.score || 0}`}
-            </div>
-            <div className="text-sm text-gray-400">
-              {gameState.gameRunning ? 'Game Running' : 'Game Paused'}
-            </div>
-            {playerIndex !== null && (
-              <div className="text-sm text-green-400 mt-1">
-                You are Player {playerIndex + 1} - You see yourself on the left!
-              </div>
-            )}
-          </div>
-
-          <div className="text-gray-400 text-sm max-w-md text-center">
-            <p className="mb-2">
-              <strong>Controls (Same for all players):</strong>
-            </p>
-            <p className="mb-1">• W or Arrow Up: Move paddle up</p>
-            <p className="mb-1">• S or Arrow Down: Move paddle down</p>
-            <p className="text-green-400">Your paddle is highlighted in green!</p>
-            <p className="text-yellow-400 mt-2">Each player sees themselves on the left side</p>
           </div>
         </>
       )}
+
+      {/* Loading/Waiting Animation */}
+      {(connectionState === 'connecting' || connectionState === 'waiting') && (
+        <div className="bg-gray-800 p-8 rounded-lg mb-6 w-full max-w-md text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <h3 className="text-xl font-bold text-white mb-2">
+            {connectionState === 'connecting' ? 'Connecting...' : 'Finding Match...'}
+          </h3>
+          <p className="text-gray-300 text-sm">
+            {connectionState === 'connecting' 
+              ? 'Connecting to matchmaking server...'
+              : 'Looking for an available opponent...'
+            }
+          </p>
+          {connectionState === 'waiting' && waitingCount > 0 && (
+            <p className="text-yellow-400 text-xs mt-2">
+              Queue position: {waitingCount}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Error State */}
+      {connectionState === 'error' && (
+        <div className="bg-red-800 p-6 rounded-lg mb-6 w-full max-w-md text-center">
+          <h3 className="text-xl font-bold text-white mb-2">Connection Error</h3>
+          <p className="text-red-200 text-sm mb-4">
+            Failed to connect to the matchmaking server.
+          </p>
+          <button
+            onClick={connectAndFindMatch}
+            className="px-4 py-2 bg-red-600 text-white rounded font-semibold hover:bg-red-700 transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      )}
+
+      {/* Game Info Footer */}
+      <div className="text-center text-gray-500 text-xs mt-6 max-w-lg">
+        <p className="mb-1">
+          🎮 <strong>How it works:</strong> Players are automatically matched when they click "Find Match"
+        </p>
+        <p className="mb-1">
+          📊 <strong>Matchmaking:</strong> 2 players → 1 game, 3 players → 1 game + 1 waiting, etc.
+        </p>
+        <p>
+          🎯 <strong>Perspective:</strong> Each player always sees themselves on the left side
+        </p>
+      </div>
     </div>
   );
 };
 
-export default MultiplayerPongGame;
+export default AutoMatchmakingPong;

@@ -1,13 +1,15 @@
 'use client';
 import { useRef, useState } from 'react';
 
-export default function MultiplayerPongGame_test() {
+export default function MultiplayerPongGame_test() 
+{
   const wsRef = useRef<WebSocket | null>(null);
   const [logs, setLogs] = useState<string[]>([]);
   const [playerId, setPlayerId] = useState<string | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
 
-  const connectToServer = () => {
+  const connectToServer = () => 
+  {
     if (connectionStatus === 'connected') {
       // If already connected, disconnect
       if (wsRef.current) {
@@ -46,7 +48,7 @@ export default function MultiplayerPongGame_test() {
           setLogs((prev) => [...prev, `🎮 Your player ID: ${data.playerId}`]);
         }
       } catch (error) {
-        console.error('Error parsing message:', error);
+        console.error('❌Error parsing message:', error);
         setLogs((prev) => [...prev, '❌ Error parsing server message']);
       }
     };
@@ -89,7 +91,8 @@ export default function MultiplayerPongGame_test() {
     }
   };
 
-  const getConnectButtonText = () => {
+  const getConnectButtonText = () => 
+    {
     switch (connectionStatus) {
       case 'connected': return 'Disconnect';
       case 'connecting': return 'Connecting...';
