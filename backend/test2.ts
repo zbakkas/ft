@@ -33,13 +33,14 @@ const start = async () => {
 start();
 //////////////////////////////////////////
 
-let CANVAS_WIDTH =500;
+let CANVAS_WIDTH =800;
 let CANVAS_HEIGHT =400;
 
 let PADDLE_WIDTH =10;
 let PADDLE_HEIGHT =80;
 let BALL_SIZE =16;
 let BALL_SPEED =6;
+ let c_WIN =7;
 
 
 
@@ -503,6 +504,22 @@ const updateGameState = (room: GameRoom) => {
       player1.score++;
       resetBall(gameState);
     }
+
+    // End game if any player reaches score of 5
+    if( player1.score >= c_WIN || player2.score >= c_WIN) 
+    {
+      gameState.gameRunning = false;
+      stopGameLoop(room);
+      room.players.forEach(player => {
+        player.socket.send(JSON.stringify({
+          type: 'gameOver',
+          message: `Game over! You are ${player.score >= c_WIN ? 'the winner!' : 'the loser.'}`,
+        }));
+      });
+      return;
+    }
+
+
   }
 };
 

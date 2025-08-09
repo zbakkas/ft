@@ -1,7 +1,7 @@
 'use client';
 import { useRef, useState, useEffect, useCallback } from 'react';
 
-const CANVAS_WIDTH = 500;
+const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 400;
 const PADDLE_WIDTH = 10;
 const PADDLE_HEIGHT = 80;
@@ -35,6 +35,10 @@ export default function MultiplayerPongGame_test2() {
   // Scores
   const [myScore, setMyScore] = useState<number>(0);
   const [opponentScore, setOpponentScore] = useState<number>(0);
+
+  //gameover
+  const [gameOver, setGameOver] = useState< string |boolean>(false);
+
 
   const connectToServer = () => 
   {
@@ -149,6 +153,12 @@ export default function MultiplayerPongGame_test2() {
         }
         setBallX(data.gameState.ballX);
         setBallY(data.gameState.ballY);
+        break;
+      case 'gameOver':
+        setGameOver(data.message);
+        setIsLoading(false);
+        setGameRunning(false);
+        console.log('Game Over:', data.message);
         break;
 
       default:
@@ -361,6 +371,9 @@ export default function MultiplayerPongGame_test2() {
       {connectionStatus === 'connected' && (
         <button onClick={disconnectFromServer}>disconnected</button>
       )}
+      {gameOver && (
+        <h1>{gameOver}</h1>
+      )}
 
       {/* Game Area with Paddle */}
       {gameRunning && (
@@ -401,9 +414,9 @@ export default function MultiplayerPongGame_test2() {
             }}
           />
          {/* Scores */}
-           <div className="flex justify-center gap-8 mb-4 text-xl font-bold">
-          <div>You: {myScore}</div>
-          <div>Opponent: {opponentScore}</div>
+        <div className="absolute  w-full   flex justify-between pt-5 px-50  items-center text-xl font-bold text-white">
+          <div> {myScore}</div>
+          <div> {opponentScore}</div>
         </div>
 
    {/* Center Line */}
