@@ -1,5 +1,6 @@
 'use client';
 import { useRef, useState, useEffect, useCallback } from 'react';
+import GameDesign_m from './gameDesign';
 
 const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 400;
@@ -42,30 +43,7 @@ export default function MultiplayerPongGame_test2() {
   //gameover
   const [gameOver, setGameOver] = useState< string |boolean>(false);
 
-  // Countdown
-  const [countdown, setCountdown] = useState<number | null>(null);
 
-
-  // Add this useEffect to handle the countdown timer
-useEffect(() => {
-  if (openTheGame && !gameRunning) {
-    // Start countdown when game opens but hasn't started yet
-    setCountdown(COUNTDOWN_TIME);
-    
-    const timer = setInterval(() => {
-      setCountdown(prev => {
-        if (prev === null || prev <= 1) {
-          clearInterval(timer);
-          return null; // Timer finished
-        }
-        return prev - 1;
-      });
-    }, 1000); // 1 second intervals
-
-    // Cleanup function
-    return () => clearInterval(timer);
-  }
-}, [openTheGame]);
 
 
   const connectToServer = () => 
@@ -122,6 +100,7 @@ useEffect(() => {
       wsRef.current = null;
     };
   };
+  
   const handleServerMessage = useCallback((data: any) => {
     switch (data.type) {
       case 'matchFound':
@@ -200,85 +179,7 @@ useEffect(() => {
     }
   }, [playerId]);
 
-  // // Send paddle movement to server (with throttling)
-  // const sendPaddleMove = useCallback((direction: 'up' | 'down', newY: number) => {
-  //   if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
-
-  //   const now = Date.now();
-  //   if (
-  //     lastPaddleMove.current &&
-  //     lastPaddleMove.current.direction === direction &&
-  //     now - lastPaddleMove.current.time < 16
-  //   ) {
-  //     return;
-  //   }
-
-  //   wsRef.current.send(
-  //     JSON.stringify({
-  //       type: 'paddleMove',
-  //       direction,
-  //       gameHeight: CANVAS_HEIGHT,
-  //       paddleHeight: PADDLE_HEIGHT,
-  //       PADDLE_SPEED,
-  //     })
-  //   );
-
-  //   lastPaddleMove.current = { direction, time: now };
-  // }, []);
-
-  // // FIXED: Only update local paddle position if the move is valid, and only send movement if an actual change occurs
-  // useEffect(() => {
-  //   const updatePaddle = () => {
-  //     let newY = P_me_paddleY;
-  //     let moved = false;
-  //     if (keysRef.current.has('w') || keysRef.current.has('arrowup')) {
-  //       if (newY > 0) {
-  //         newY = Math.max(0, newY - PADDLE_SPEED);
-  //         sendPaddleMove('up', newY);
-  //         moved = true;
-  //       }
-  //     }
-  //     if (keysRef.current.has('s') || keysRef.current.has('arrowdown')) {
-  //       if (newY < CANVAS_HEIGHT - PADDLE_HEIGHT) {
-  //         newY = Math.min(CANVAS_HEIGHT - PADDLE_HEIGHT, newY + PADDLE_SPEED);
-  //         sendPaddleMove('down', newY);
-  //         moved = true;
-  //       }
-  //     }
-  //     if (moved && newY !== P_me_paddleY) {
-  //       setP_me_PaddleY(newY);
-  //     }
-  //   };
-  //   const intervalId = setInterval(updatePaddle, 16); // ~60fps
-
-  //   return () => clearInterval(intervalId);
-  // }, [sendPaddleMove, P_me_paddleY]);
-
-  // // Keyboard event handlers
-  // useEffect(() => {
-  //   const handleKeyDown = (e: KeyboardEvent) => {
-  //     if (
-  //       e.key === 'w' ||
-  //       e.key === 's' ||
-  //       e.key === 'ArrowUp' ||
-  //       e.key === 'ArrowDown'
-  //     ) {
-  //       keysRef.current.add(e.key.toLowerCase());
-  //     }
-  //   };
-
-  //   const handleKeyUp = (e: KeyboardEvent) => {
-  //     keysRef.current.delete(e.key.toLowerCase());
-  //   };
-
-  //   window.addEventListener('keydown', handleKeyDown);
-  //   window.addEventListener('keyup', handleKeyUp);
-
-  //   return () => {
-  //     window.removeEventListener('keydown', handleKeyDown);
-  //     window.removeEventListener('keyup', handleKeyUp);
-  //   };
-  // }, []);
+  
 
   // Send paddle movement to server (with throttling)
   const sendPaddleMove = useCallback((direction: 'up' | 'down') => {
@@ -294,46 +195,11 @@ useEffect(() => {
     wsRef.current.send(JSON.stringify({
       type: 'paddleMove',
       direction,
-      gameHeight: CANVAS_HEIGHT,
-      paddleHeight: PADDLE_HEIGHT,
-      gameWidth: CANVAS_WIDTH,
-      PADDLE_SPEED,
     }));
 
     lastPaddleMove.current = { direction, time: now };
   }, []);
 
-  // const sendPaddleMove = useCallback((direction: 'up' | 'down') => {
-  //   if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
-  
-  //   // Update local paddle position immediately
-  //   setP_me_PaddleY(prev => {
-  //     let newY = prev;
-  //     if (direction === 'up') newY = Math.max(0, prev - PADDLE_SPEED);
-  //     else if (direction === 'down') newY = Math.min(CANVAS_HEIGHT - PADDLE_HEIGHT, prev + PADDLE_SPEED);
-  //     return newY;
-  //   });
-  
-  //   // Throttle sending to server
-  //   const now = Date.now();
-  //   if (
-  //     lastPaddleMove.current &&
-  //     lastPaddleMove.current.direction === direction &&
-  //     now - lastPaddleMove.current.time < 16
-  //   ) {
-  //     return;
-  //   }
-  
-  //   wsRef.current.send(JSON.stringify({
-  //     type: 'paddleMove',
-  //     direction,
-  //     gameHeight: CANVAS_HEIGHT,
-  //     paddleHeight: PADDLE_HEIGHT,
-  //     PADDLE_SPEED,
-  //   }));
-  
-  //   lastPaddleMove.current = { direction, time: now };
-  // }, []);
   
 
   // Handle continuous key presses
@@ -393,87 +259,32 @@ useEffect(() => {
     }
   };
 
+
   return (
     <div>
-      <h1> you are {connectionStatus} </h1>
-      {messagee && <h2>{messagee}</h2>}
-      {playerId && <h2>Player ID: {playerId}</h2>}
-
-      {isLoading && (
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-400"></div>
-      )}
-      {roomId && <h2>Room ID: {roomId}</h2>}
-      {connectionStatus === 'connected' && (
-        <button onClick={disconnectFromServer}>disconnected</button>
-      )}
- 
-
-      {/* Game Area with Paddle */}
-      {openTheGame && (
-        <div
-          className=" relative bg-black border border-white rotate-0 items-center justify-center  m-auto"
-          style={{ width: CANVAS_WIDTH, height: CANVAS_HEIGHT }}
-          
-        >
-          {/* Left Paddle (Your paddle) */}
-          <div
-            className="absolute bg-green-400"
-            style={{
-              left: '0px',
-              top: `${P_me_paddleY}px`,
-              width: `${PADDLE_WIDTH}px`,
-              height: `${PADDLE_HEIGHT}px`,
-            }}
-          />
-          {/* Right Paddle (Opponent paddle) */}
-          <div
-            className="absolute bg-white"
-            style={{
-              left: `${CANVAS_WIDTH - PADDLE_WIDTH - 0}px`,
-              top: `${P_2_paddleY}px`,
-              width: `${PADDLE_WIDTH}px`,
-              height: `${PADDLE_HEIGHT}px`,
-            }}
-          />
-
-           {/* Ball */}
-           {!gameOver &&
-          <div
-            className="absolute bg-red-500 rounded-full z-1"
-            style={{
-              left: `${(ballX - BALL_SIZE / 2)}px`,
-              top: `${(ballY - BALL_SIZE / 2)}px`,
-              width: `${BALL_SIZE}px`,
-              height: `${BALL_SIZE}px`,
-            }}
-          />
-          }
-
-         {/* Scores */}
-        <div className="absolute  w-full   flex justify-between pt-5 px-50  items-center text-xl font-bold text-white">
-          <div> {myScore}</div>
-          <div> {opponentScore}</div>
-        </div>
-
-         {/* Add this to your JSX, inside the game area div where you want to display the countdown */}
-{countdown !== null && (
-  <div className="absolute inset-0 flex items-center justify-center ">
-    <div className="text-9xl font-bold text-white/90 px-8 py-4 rounded-lg z-4">
-      {countdown}
-    </div>
-  </div>
-)}
-        {gameOver && (
-          <h1 className='absolute font-bold text-6xl text-center z-4 inset-0 flex items-center justify-center'>{gameOver}</h1>
-        )}
-
-   {/* Center Line */}
-    <div
-      className="absolute h-full left-1/2 transform -translate-x-1/2 border-l-2 border-gray-400 border-dashed"
-    />
-        
-        </div>
-      )}
+        <GameDesign_m
+          BALL_SIZE={BALL_SIZE}
+          PADDLE_HEIGHT={PADDLE_HEIGHT}
+          PADDLE_WIDTH={PADDLE_WIDTH}
+          connectionStatus={connectionStatus}
+          CANVAS_WIDTH={CANVAS_WIDTH}
+          CANVAS_HEIGHT={CANVAS_HEIGHT}
+          disconnectFromServer={disconnectFromServer}
+          playerId={playerId}
+          roomId={roomId}
+          messagee={messagee}
+          isLoading={isLoading}
+          openTheGame={openTheGame}
+          P_me_paddleY={P_me_paddleY}
+          P_2_paddleY={P_2_paddleY}
+          gameRunning={gameRunning}
+          ballX={ballX}
+          ballY={ballY}
+          myScore={myScore}
+          opponentScore={opponentScore}
+          COUNTDOWN_TIME={COUNTDOWN_TIME}
+          gameOver={gameOver}
+        />
     </div>
   );
 }
