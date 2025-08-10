@@ -7,7 +7,9 @@ const PADDLE_WIDTH = 10;
 const PADDLE_HEIGHT = 80;
 const BALL_SIZE = 15;
 const PADDLE_SPEED = 5;
-let BALL_SPEED =6;
+const BALL_SPEED =6;
+const COUNTDOWN_TIME = 5; // Countdown time in seconds
+
 
 export default function MultiplayerPongGame_test2() {
   const wsRef = useRef<WebSocket | null>(null);
@@ -26,6 +28,7 @@ export default function MultiplayerPongGame_test2() {
   const keysRef = useRef<Set<string>>(new Set());
   const [player_N, setPlayer_N] = useState<number | null>(null);
   const [gameRunning, setGameRunning] = useState<boolean>(false);
+  const [openTheGame, setopenTheGame] = useState<boolean>(false);
   const lastPaddleMove = useRef<{ direction: string; time: number } | null>(null);
 
   //BALL state
@@ -38,6 +41,31 @@ export default function MultiplayerPongGame_test2() {
 
   //gameover
   const [gameOver, setGameOver] = useState< string |boolean>(false);
+
+  // Countdown
+  const [countdown, setCountdown] = useState<number | null>(null);
+
+
+  // Add this useEffect to handle the countdown timer
+useEffect(() => {
+  if (openTheGame && !gameRunning) {
+    // Start countdown when game opens but hasn't started yet
+    setCountdown(COUNTDOWN_TIME);
+    
+    const timer = setInterval(() => {
+      setCountdown(prev => {
+        if (prev === null || prev <= 1) {
+          clearInterval(timer);
+          return null; // Timer finished
+        }
+        return prev - 1;
+      });
+    }, 1000); // 1 second intervals
+
+    // Cleanup function
+    return () => clearInterval(timer);
+  }
+}, [openTheGame]);
 
 
   const connectToServer = () => 
@@ -84,6 +112,8 @@ export default function MultiplayerPongGame_test2() {
       setRoomId(null);
       setPlayer_N(null);
       setIsLoading(false);
+      setGameRunning(false);
+      setopenTheGame(false);
     };
 
     ws.onerror = (error) => {
@@ -99,6 +129,7 @@ export default function MultiplayerPongGame_test2() {
         setRoomId(data.gameId);
         setIsLoading(false);
         setPlayer_N(data.playerIndex + 1);
+        setopenTheGame(true);
         console.log(`Match found! Room ID: ${data.gameId}`);
 
         if (data.players) {
@@ -111,9 +142,12 @@ export default function MultiplayerPongGame_test2() {
         }
         break;
       case 'opponentDisconnected':
-        setMessage(data.message);
-        setIsLoading(true);
-        setRoomId(null);
+        // setMessage(data.message);
+        setGameOver(data.message);
+        setIsLoading(false);
+        // setRoomId(null);
+        setGameRunning(false);
+        // setopenTheGame(false);
         console.log('Opponent disconnected:', data.message);
         break;
       case 'gameStarted':
@@ -355,6 +389,7 @@ export default function MultiplayerPongGame_test2() {
       setIsLoading(false);
       setPlayer_N(null);
       setGameRunning(false);
+      setopenTheGame(false);
     }
   };
 
@@ -371,12 +406,10 @@ export default function MultiplayerPongGame_test2() {
       {connectionStatus === 'connected' && (
         <button onClick={disconnectFromServer}>disconnected</button>
       )}
-      {gameOver && (
-        <h1>{gameOver}</h1>
-      )}
+ 
 
       {/* Game Area with Paddle */}
-      {gameRunning && (
+      {openTheGame && (
         <div
           className=" relative bg-black border border-white rotate-0 items-center justify-center  m-auto"
           style={{ width: CANVAS_WIDTH, height: CANVAS_HEIGHT }}
@@ -404,6 +437,7 @@ export default function MultiplayerPongGame_test2() {
           />
 
            {/* Ball */}
+           {!gameOver &&
           <div
             className="absolute bg-red-500 rounded-full z-1"
             style={{
@@ -413,11 +447,25 @@ export default function MultiplayerPongGame_test2() {
               height: `${BALL_SIZE}px`,
             }}
           />
+          }
+
          {/* Scores */}
         <div className="absolute  w-full   flex justify-between pt-5 px-50  items-center text-xl font-bold text-white">
           <div> {myScore}</div>
           <div> {opponentScore}</div>
         </div>
+
+         {/* Add this to your JSX, inside the game area div where you want to display the countdown */}
+{countdown !== null && (
+  <div className="absolute inset-0 flex items-center justify-center ">
+    <div className="text-9xl font-bold text-white/90 px-8 py-4 rounded-lg z-4">
+      {countdown}
+    </div>
+  </div>
+)}
+        {gameOver && (
+          <h1 className='absolute font-bold text-6xl text-center z-4 inset-0 flex items-center justify-center'>{gameOver}</h1>
+        )}
 
    {/* Center Line */}
     <div

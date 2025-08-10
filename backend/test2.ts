@@ -1,7 +1,6 @@
 import Fastify from 'fastify';
 import fastifyWebsocket from '@fastify/websocket';
 import cors from '@fastify/cors';
-import { CANCELLED } from 'dns';
 
 
 const fastify = Fastify({ logger: true });
@@ -41,6 +40,8 @@ let PADDLE_HEIGHT =80;
 let BALL_SIZE =16;
 let BALL_SPEED =6;
  let c_WIN =7;
+ let COUNTDOWN_TIME = 5; // Countdown time in seconds
+
 
 
 
@@ -197,7 +198,7 @@ const createGameForTwoPlayers = (player1: { playerId: string; socket: any }, pla
         message: 'Game started! Use W/S or Arrow keys to move your paddle.'
       }));
     });
-  }, 2000); // 2 second delay before auto-start
+  }, COUNTDOWN_TIME *1000); // COUNTDOWN_TIME second delay before auto-start
 };
 
 // Create initial game state
@@ -412,17 +413,18 @@ const handlePlayerDisconnect = (playerId: string) => {
   room.players.forEach(player => {
     player.socket.send(JSON.stringify({
       type: 'opponentDisconnected',
-      message: 'Your opponent disconnected. Looking for a new match...'
+      message: 'Your opponent disconnected. you are the winner!',
+
     }));
     
     // Add remaining player back to waiting list
-    waitingPlayers.push({ playerId: player.id, socket: player.socket });
+    // waitingPlayers.push({ playerId: player.id, socket: player.socket });
     
-    player.socket.send(JSON.stringify({
-      type: 'waitingForOpponent',
-      message: 'Waiting for a new opponent...',
-      waitingPlayers: waitingPlayers.length
-    }));
+    // player.socket.send(JSON.stringify({
+    //   type: 'waitingForOpponent',
+    //   message: 'Waiting for a new opponent...',
+    //   waitingPlayers: waitingPlayers.length
+    // }));
   });
 
   // Remove empty rooms
@@ -523,7 +525,8 @@ const updateGameState = (room: GameRoom) => {
   }
 };
 
-const resetBall = (gameState: GameState) => {
+const resetBall = (gameState: GameState) => 
+{
   gameState.ballX = CANVAS_WIDTH / 2;
   gameState.ballY = CANVAS_HEIGHT / 2;
   gameState.ballVelocityX = (Math.random() > 0.5 ? 1 : -1) * BALL_SPEED;
@@ -532,7 +535,8 @@ const resetBall = (gameState: GameState) => {
 
 
 // Start game loop for a room
-const startGameLoop = (room: GameRoom) => {
+const startGameLoop = (room: GameRoom) => 
+{
   if (room.gameLoop) {
     clearInterval(room.gameLoop);
   }
