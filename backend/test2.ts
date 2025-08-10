@@ -60,6 +60,7 @@ interface GameState {
   ballVelocityY: number; // Vertical speed
   players: Map<string, Player>;
   gameRunning: boolean;
+  gameOver:boolean;
   gameId: string;
 }
 
@@ -209,6 +210,7 @@ const createGameState = (gameId: string): GameState => ({
   ballVelocityY: BALL_SPEED,
   players: new Map(),
   gameRunning: false,
+  gameOver: false,
   gameId
 });
 
@@ -405,17 +407,23 @@ const handlePlayerDisconnect = (playerId: string) => {
   room.players.delete(playerId);
   room.gameState.players.delete(playerId);
   
-  // Stop game if a player disconnects
-  room.gameState.gameRunning = false;
-  stopGameLoop(room);
+  //if game is not over 
+  if( !room.gameState.gameOver)
+  {
+    // Stop game if a player disconnects
+    room.gameState.gameRunning = false;
+    stopGameLoop(room);
+  
 
-  // Notify remaining player and add them back to waiting list
-  room.players.forEach(player => {
-    player.socket.send(JSON.stringify({
+    // Notify remaining player and add them back to waiting list
+    room.players.forEach(player => 
+    {
+      player.socket.send(JSON.stringify(
+      {
       type: 'opponentDisconnected',
       message: 'Your opponent disconnected. you are the winner!',
 
-    }));
+     }));
     
     // Add remaining player back to waiting list
     // waitingPlayers.push({ playerId: player.id, socket: player.socket });
@@ -425,7 +433,8 @@ const handlePlayerDisconnect = (playerId: string) => {
     //   message: 'Waiting for a new opponent...',
     //   waitingPlayers: waitingPlayers.length
     // }));
-  });
+    });
+  }
 
   // Remove empty rooms
   if (room.players.size === 0) {
@@ -511,6 +520,7 @@ const updateGameState = (room: GameRoom) => {
     if( player1.score >= c_WIN || player2.score >= c_WIN) 
     {
       gameState.gameRunning = false;
+      gameState.gameOver = true;
       stopGameLoop(room);
       room.players.forEach(player => {
         player.socket.send(JSON.stringify({
