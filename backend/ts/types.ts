@@ -6,10 +6,10 @@ export const CANVAS_HEIGHT = 400;
 export const PADDLE_WIDTH = 10;
 export const PADDLE_HEIGHT = 80;
 export const BALL_SIZE = 16;
-export const BALL_SPEED = 6;
+export const BALL_SPEED = 8;
 export const c_WIN = 7;
 export const COUNTDOWN_TIME = 5;
-export const PADDLE_SPEED = 5;
+export const PADDLE_SPEED = 7;
 
 // Interfaces
 export interface Player {
