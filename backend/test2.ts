@@ -2,7 +2,22 @@ import Fastify from 'fastify';
 import fastifyWebsocket from '@fastify/websocket';
 import cors from '@fastify/cors';
 ////////////
-
+import { 
+  GameRoom, 
+  GameState, 
+  Player, 
+  gameRooms, 
+  CANVAS_WIDTH, 
+  CANVAS_HEIGHT, 
+  PADDLE_WIDTH, 
+  PADDLE_HEIGHT, 
+  BALL_SIZE, 
+  BALL_SPEED,
+  c_WIN,
+  PADDLE_SPEED,
+  waitingPlayers,
+  COUNTDOWN_TIME
+} from './ts/types';
 
 
 const fastify = Fastify({ logger: true });
@@ -66,6 +81,10 @@ fastify.register(async function (fastify) {
           case 'paddleMove':
             handlePaddleMove(playerId, data.direction);
             break;
+
+          case 'paddleMove3D':
+            handlePaddleMove_3D(playerId, data.direction);
+            break;
             
           case 'startGame':
             handleStartGame(playerId);
@@ -89,6 +108,62 @@ fastify.register(async function (fastify) {
     });
   });
 });
+const handlePaddleMove_3D = (playerId: string, direction: number) => {
+  // Find the room containing this player
+  let playerRoom: GameRoom | undefined;
+  let player: Player | undefined;
+
+  for (const room of gameRooms.values()) {
+    player = room.players.get(playerId);
+    if (player) {
+      playerRoom = room;
+      break;
+    }
+  }
+
+  if (!playerRoom || !player) return;
+
+  // 🔧 FIX: Actually update the player's paddle position
+  player.paddleY = direction;
+  
+  // Also update in the gameState players map if it exists there
+  if (playerRoom.gameState.players.has(playerId)) {
+    playerRoom.gameState.players.get(playerId)!.paddleY = direction;
+  }
+
+  console.log(`Player ${playerId} moved paddle to position: ${direction}`);
+
+  // Now broadcast the updated game state
+  broadcastGameState_3D(playerRoom);
+}
+
+// Also, make sure your broadcastGameState_3D function is getting the updated data
+export const broadcastGameState_3D = (room: GameRoom) => {
+ room.gameState.players.forEach(player => {
+   try {
+     const gameData = {
+       type: 'gameState_3D',
+       gameState: {
+         ballX: 0,
+         ballY: 0,
+         gameRunning: room.gameState.gameRunning,
+         players: Array.from(room.gameState.players.values()).map(p => ({
+           id: p.id,
+           paddleY: p.paddleY, // This should now have the updated position
+           score: p.score,
+           playerIndex: p.playerIndex
+         }))
+       },
+       yourPlayerIndex: player.playerIndex
+     };
+     
+     console.log(`Broadcasting to player ${player.id}: paddleY = ${player.paddleY}`);
+     player.socket.send(JSON.stringify(gameData));
+   } catch (error) {
+     console.error('Error sending to player:', error);
+   }
+ });
+};
 
 
 

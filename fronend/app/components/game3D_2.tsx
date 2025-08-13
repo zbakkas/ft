@@ -1,12 +1,36 @@
 "use client";
 import * as BABYLON from 'babylonjs';
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import 'babylonjs-loaders';
 
 export default function Game3D() {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const sceneRef = useRef<BABYLON.Scene | null>(null);
     const engineRef = useRef<BABYLON.Engine | null>(null);
+    /////////////////////////////////
+    const wsRef = useRef<WebSocket | null>(null);
+    const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
+    const [playerId, setPlayerId] = useState<string | null>(null);
+    const playerIdRef = useRef<string | null>(null);
+  
+    const [roomId, setRoomId] = useState<string | null>(null);
+    const [messagee, setMessage] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState<boolean>(false);
+    
+  
+    // Paddle state
+    const [P_me_paddleY, setP_me_PaddleY] = useState<number>(-28); // Starting position
+    const [P_2_paddleY, setP_2_PaddleY] = useState<number>(-28); // Starting position
+    const P_me_paddleY_REF  = useRef<number>(-28); // Starting position
+    const P_2_paddleY_REF  = useRef<number>(-28); // Starting position
+    const lastPaddleMove = useRef<{ direction: number; time: number } | null>(null);
+
+    const [gameRunning, setGameRunning] = useState<boolean>(false);
+    const [openTheGame, setopenTheGame] = useState<boolean>(false);
+
+
+
+    /////////////////////////////
     
     useEffect(() => {
         if (!canvasRef.current) return;
@@ -31,6 +55,7 @@ export default function Game3D() {
         );
 
         camera.attachControl(canvas, true);
+        camera.inputs.removeByType("ArcRotateCameraKeyboardMoveInput");     
         scene.activeCamera = camera;
         
         // Create lighting
@@ -265,9 +290,11 @@ export default function Game3D() {
             if (paddle1) {
                 if (inputMap['ArrowLeft'] && paddle1.position.z > paddle1MinZ) {
                     paddle1.position.z -= paddleSpeed;
+                    sendPaddleMove(paddle1.position.z);
                 }
                 if (inputMap['ArrowRight'] && paddle1.position.z < paddle1MaxZ) {
                     paddle1.position.z += paddleSpeed;
+                    sendPaddleMove(paddle1.position.z);
                 }
                 
                 const angle = calculatePaddleAngle(paddle1.position.z, true);
@@ -275,13 +302,19 @@ export default function Game3D() {
                 paddle1.rotation.z = angle; 
             }
 
-            if (paddle2) {
-                if (inputMap['KeyA'] && paddle2.position.z > paddle2MinZ) {
-                    paddle2.position.z -= paddleSpeed;
-                }
-                if (inputMap['KeyD'] && paddle2.position.z < paddle2MaxZ) {
-                    paddle2.position.z += paddleSpeed;
-                }
+            if (paddle2) 
+            {
+
+                // paddle2.position.z = P_2_paddleY;
+                paddle2.position.z = P_2_paddleY_REF.current;
+                // if (inputMap['KeyA'] && paddle2.position.z > paddle2MinZ) {
+                //     paddle2.position.z -= paddleSpeed;
+                //     // sendPaddleMove(paddle2.position.z);
+                // }
+                // if (inputMap['KeyD'] && paddle2.position.z < paddle2MaxZ) {
+                //     paddle2.position.z += paddleSpeed;
+                //     // sendPaddleMove(paddle2.position.z);
+                // }
                 
                 const angle = calculatePaddleAngle(paddle2.position.z, false);
                 paddle2.rotation.y = -Math.PI / 2; 
@@ -303,7 +336,163 @@ export default function Game3D() {
         };
 
     }, []);
+    ////////////////////////////
+  
+
+
+    const connectToServer = () => 
+    {
+      if (connectionStatus === 'connected') {
+        // If already connected, disconnect
+        if (wsRef.current) {
+          wsRef.current.close();
+        }
+        return;
+      }
+  
+      const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001/ws';
+      console.log('Attempting to connect to:', wsUrl);
+  
+      setConnectionStatus('connecting');
+  
+      const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
+  
+      ws.onopen = () => {
+        console.log('✅ Connected to WebSocket');
+        setConnectionStatus('connected');
+        setIsLoading(true);
+      };
+  
+      ws.onmessage = (event) => {
+        // console.log('📨 Received message from server:', event.data);
+  
+        try 
+        {
+          const data = JSON.parse(event.data);
+          handleServerMessage(data);
+        } catch (error) {
+          console.error('Error parsing message:', error);
+        }
+      };
+  
+      ws.onclose = (event) => {
+        console.log('❌ WebSocket disconnected', event.code, event.reason);
+        setConnectionStatus('disconnected');
+      };
+  
+      ws.onerror = (error) => {
+        console.error('❌ WebSocket error:', error);
+        setConnectionStatus('disconnected');
+        wsRef.current = null;
+      };
+    };
     
+    const handleServerMessage = useCallback((data: any) => 
+    {
+      switch (data.type) {
+        case 'matchFound':
+          setMessage(data.message);
+          setRoomId(data.gameId);
+          setIsLoading(false);
+          setopenTheGame(true);
+          console.log(`Match found! Room ID: ${data.gameId}`);
+  
+          if (data.players) {
+            const myPlayer = data.players.find((p: { id: string | null; }) => p.id === playerId);
+            const opponent = data.players.find((p: { id: string | null; }) => p.id !== playerId);
+            
+            if (myPlayer) setP_me_PaddleY(myPlayer.paddleY);
+            if (opponent) setP_2_PaddleY(opponent.paddleY);
+            console.log('Game state updated:', { myPlayer, opponent });
+          }
+          break;
+        case 'opponentDisconnected':
+          // setMessage(data.message);
+        //   setGameOver(data.message);
+          setIsLoading(false);
+          // setRoomId(null);
+          setGameRunning(false);
+          // setopenTheGame(false);
+          console.log('Opponent disconnected:', data.message);
+          break;
+        case 'gameStarted':
+          setMessage(data.message);
+          setIsLoading(false);
+          setGameRunning(true);
+          console.log('Game started:', data.message);
+          break;
+        case 'waitingForOpponent':
+          setMessage(data.message);
+          console.log(`Waiting for opponent: ${data.message}`);
+          break;
+        case 'playerId':
+            playerIdRef.current = data.playerId; // ✅ instant availability
+            setPlayerId(data.playerId);          // ✅ triggers re-render for UI
+            console.log(`🎮 Your player ID in B: ${playerId}`);
+            console.log(`🎮 Your player ID in S: ${data.playerId}`);
+          break;
+        case 'gameState_3D':
+            const myId = playerIdRef.current;
+            if (!myId) return; // now this will work after first message
+
+            if (data.gameState?.players) {
+                const myPlayer = data.gameState.players.find((p: any) => p.id === myId);
+                const opponent = data.gameState.players.find((p: any) => p.id !== myId);
+                console.log('xxxGame state received:', { myPlayerPaddleY: myPlayer.paddleY, opponentPaddleY: opponent.paddleY });
+                if (myPlayer)
+                {
+                  setP_me_PaddleY(myPlayer.paddleY);
+                  P_2_paddleY_REF.current = myPlayer.paddleY;
+                //   setMyScore(myPlayer.score);
+                } 
+                if (opponent) 
+                {
+                  setP_2_PaddleY(opponent.paddleY);
+                    P_2_paddleY_REF.current = opponent.paddleY;
+                //   setOpponentScore(opponent.score);
+                    
+                }
+              }
+            break;
+        case 'gameOver':
+        //   setGameOver(data.message);
+          setIsLoading(false);
+          setGameRunning(false);
+          console.log('Game Over:', data.message);
+          break;
+  
+        default:
+          console.log('Unknown message type:', data.type);
+      }
+    }, [playerId]);
+
+    // Send paddle movement to server (with throttling)
+    const sendPaddleMove = useCallback((direction: number) => 
+    {
+        
+        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+
+        const now = Date.now();
+        if (lastPaddleMove.current && 
+            lastPaddleMove.current.direction === direction && 
+            now - lastPaddleMove.current.time < 16) { // ~60fps throttling
+          return;
+        }
+
+        wsRef.current.send(JSON.stringify({
+          type: 'paddleMove3D',
+          direction,
+        }));
+
+        lastPaddleMove.current = { direction, time: now };
+    }, []);
+
+    useEffect(() => {
+        connectToServer();
+      }, []);
+    
+
     return (
         <div className="w-full h-screen relative">
             <canvas 
@@ -331,7 +520,9 @@ export default function Game3D() {
 
             <div className="absolute top-4 right-4 bg-black bg-opacity-50 text-white p-4 rounded">
                 <div className="text-sm">
-                    <div>🏓 MEDIUM Jump Ping Pong</div>
+                    <div>🏓 you are {connectionStatus}</div>
+                    <div>🏓 you ID {playerId}</div>
+                    <div>🏓 Rome ID {roomId}</div>
                     <div className="text-xs mt-2 text-gray-300">Perfect medium height jumps!</div>
                 </div>
             </div>
