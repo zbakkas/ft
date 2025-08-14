@@ -2,6 +2,7 @@
 import * as BABYLON from 'babylonjs';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import 'babylonjs-loaders';
+import { Trophy, Users, Wifi, WifiOff } from 'lucide-react';
 const COUNTDOWN_TIME =5; // 5 seconds countdown
 export default function Game3D() {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -438,6 +439,20 @@ export default function Game3D() {
         wsRef.current = null;
       };
     };
+    const disconnectFromServer = () => {
+        if (wsRef.current) {
+          wsRef.current.close();
+          wsRef.current = null;
+          setConnectionStatus('disconnected');
+          setPlayerId(null);
+          setMessage(null);
+          setRoomId(null);
+          setIsLoading(false);
+          setGameRunning(false);
+          setopenTheGame(false);
+            setGameOver(false);
+        }
+      };
     
     const handleServerMessage = useCallback((data: any) => 
     {
@@ -464,7 +479,8 @@ export default function Game3D() {
           setIsLoading(false);
           // setRoomId(null);
           setGameRunning(false);
-          // setopenTheGame(false);
+          setopenTheGame(false);
+          setGameRunning(false);
           console.log('Opponent disconnected:', data.message);
           break;
         case 'gameStarted':
@@ -475,6 +491,7 @@ export default function Game3D() {
           break;
         case 'waitingForOpponent':
           setMessage(data.message);
+          setIsLoading(true);
           console.log(`Waiting for opponent: ${data.message}`);
           break;
         case 'playerId':
@@ -562,46 +579,117 @@ export default function Game3D() {
 
     useEffect(() => {
         connectToServer();
+        if( wsRef.current ) 
+        {
+            wsRef.current.onopen = () => 
+            {
+                wsRef.current?.send(JSON.stringify(
+                {
+
+                    type: 'gameType', 
+                    game:'3D'
+
+                }));
+            };
+        }
       }, []);
     
 
     return (
         <div className="w-full h-screen relative">
+            
+            
             <canvas 
                 ref={canvasRef} 
                 className='w-full h-full outline-none'
                 tabIndex={0}
             />
             
-            <div className="absolute top-4 left-4 bg-black bg-opacity-50 text-white p-4 rounded">
-                <h3 className="font-bold mb-2">Ping Pong Controls:</h3>
-                <div className="text-sm space-y-1">
-                    <div className="font-semibold text-yellow-300">Player 1 (Right Paddle):</div>
-                    <div>• ← →: Move Left/Right</div>
-                    
-                    <div className="font-semibold text-blue-300 mt-3">Player 2 (Left Paddle):</div>
-                    <div>• A/D: Move Left/Right</div>
-                    
-                    <div className="font-semibold text-green-300 mt-3">MEDIUM Jump Physics:</div>
-                    <div>• Ball jumps at MEDIUM height (0.25)</div>
-                    <div>• Consistent MEDIUM bounces</div>
-                    <div>• Not too high, not too low</div>
-                    <div>• Perfect MEDIUM ping pong feel</div>
-                </div>
+            {/* Countdown Overlay */}
+      {countdown && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="text-center">
+            <div className="text-9xl font-bold text-white animate-pulse drop-shadow-2xl">
+              {countdown}
             </div>
-
-            <div className="absolute top-4 right-4 bg-black bg-opacity-50 text-white p-4 rounded">
+            <p className="text-2xl text-white mt-4">Get Ready!</p>
+          </div>
+        </div>
+      )}
+            {gameOver&&
+                 (
+                    <div className="absolute inset-0 bg-black bg-opacity-90 flex items-center justify-center">
+                      <div className="text-center space-y-6 max-w-md mx-auto px-6">
+                        <Trophy className="w-16 h-16 mx-auto text-yellow-500" />
+                        <h2 className="text-4xl font-bold text-white">{gameOver}</h2>
+                        <div className="text-xl text-gray-300">
+                          Final Score: {myScore} - {opponentScore}
+                        </div>
+                        <button
+                          onClick={() => {
+                              disconnectFromServer();
+                              connectToServer();
+                          }}
+                          className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-semibold py-3 px-8 rounded-lg transition-all duration-200 transform hover:scale-105"
+                        >
+                          Play Again
+                        </button>
+                      </div>
+                    </div>
+                  )
+            }
+            {gameRunning &&
+                 <div className="absolute top-8 left-1/2 transform -translate-x-1/2">
+                 <div className="bg-black bg-opacity-60 text-white px-8 py-4 rounded-xl backdrop-blur-sm">
+                   <div className="text-4xl font-bold text-center">
+                     {myScore} - {opponentScore}
+                   </div>
+                 </div>
+               </div>
+            }
+            {/* <div className="absolute top-4 right-4 bg-black bg-opacity-50 text-white p-4 rounded">
                 <div className="text-sm">
                     <div>🏓 you are {connectionStatus}</div>
                     <div>🏓 you ID {playerId}</div>
                     <div>🏓 Rome ID {roomId}</div>
-
-                    <div>{myScore} - {opponentScore}</div>
-                    {gameOver&&<div>{gameOver}</div>}
-                    {countdown&& <div>{countdown}</div>}
-                    <div className="text-xs mt-2 text-gray-300">Perfect medium height jumps!</div>
+    
+                   
                 </div>
+
+                
+            </div> */}
+
+
+<div className="absolute top-4 left-4 bg-black bg-opacity-70 text-white p-4 rounded-xl backdrop-blur-sm min-w-48">
+        <div className="space-y-2 text-sm">
+          <div className="flex items-center space-x-2">
+            {connectionStatus ==="disconnected" ? (
+              <WifiOff className="w-4 h-4 text-red-500" />
+            ) : (
+              <Wifi className="w-4 h-4 text-green-500" />
+            )}
+            <span className="capitalize">{connectionStatus}</span>
+          </div>
+          
+          {playerId && (
+            <div className="flex items-center space-x-2">
+              <Users className="w-4 h-4 text-blue-400" />
+              <span>ID: {playerId.slice(0, 8)}</span>
             </div>
+          )}
+           {isLoading  && connectionStatus==="connecting" && (
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-400"></div>
+      )}
+          
+          {roomId && (
+            <div className="text-xs text-gray-400">
+              Room: {roomId.slice(0, 8)}
+            </div>
+          )}
+          
+          
+        </div>
+      </div>
         </div>
     );
 }

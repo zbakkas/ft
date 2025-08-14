@@ -73,6 +73,7 @@ const createGameForTwoPlayers = (player1: { playerId: string; socket: any }, pla
     score: 0,
     playerIndex: 0,
     paddleY: 200, // Initial position for player 1
+    paddleY_3d: -28, // Initial position for player 1 in 3D
     socket: player1.socket
   };
 
@@ -82,6 +83,7 @@ const createGameForTwoPlayers = (player1: { playerId: string; socket: any }, pla
     score: 0,
     playerIndex: 1,
     paddleY:200,
+    paddleY_3d: -28, // Initial position for player 2 in 3D
     socket: player2.socket
   };
 
@@ -131,8 +133,13 @@ const createGameForTwoPlayers = (player1: { playerId: string; socket: any }, pla
   // Auto-start the game after a brief delay
   setTimeout(() => {
     room.gameState.gameRunning = true;
+    if( room.gameState.game2D ) {
     startGameLoop(room);
-    startGameLoop_3D(room);
+    }
+    else
+    {
+      startGameLoop_3D(room);
+    }
     // broadcastGameState(room);
     
     room.players.forEach(player => {
@@ -155,7 +162,9 @@ const createGameState = (gameId: string): GameState => ({
   gameRunning: false,
   gameOver: false,
   gameId,
-  ballState: {
+  game2D: true,
+  ballState: 
+  {
     x: 0,
     y: BALL_PHYSICS.tableY + 5,
     z: -28.5,

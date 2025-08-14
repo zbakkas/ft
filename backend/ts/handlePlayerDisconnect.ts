@@ -1,3 +1,4 @@
+import { startGameLoop_3D, stopGameLoop_3D } from '../test2';
 import { stopGameLoop } from './gameLogic';
 import { 
   GameRoom, 
@@ -39,7 +40,9 @@ export const handlePlayerDisconnect = (playerId: string) => {
   {
     // Stop game if a player disconnects
     room.gameState.gameRunning = false;
+    room.gameState.gameOver = true;
     stopGameLoop(room);
+    stopGameLoop_3D(room);
   
 
     // Notify remaining player and add them back to waiting list

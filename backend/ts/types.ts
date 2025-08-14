@@ -18,6 +18,7 @@ export interface Player {
   score: number;
   playerIndex: number; // 0 for player 1, 1 for player 2
   paddleY: number;
+  paddleY_3d: number;
   socket: any;
 }
 
@@ -31,6 +32,7 @@ export interface GameState {
   gameOver: boolean;
   gameId: string;
   ballState: BallState;
+  game2D:boolean;
 }
 
 export interface BallState {

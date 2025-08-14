@@ -79,6 +79,9 @@ fastify.register(async function (fastify) {
         const data = JSON.parse(message.toString());
         
         switch (data.type) {
+          case 'gameType':
+            get_params(playerId, data.game);
+            break;
           case 'paddleMove':
             handlePaddleMove(playerId, data.direction);
             break;
@@ -109,6 +112,33 @@ fastify.register(async function (fastify) {
     });
   });
 });
+
+
+const get_params = (playerid:string , gameType:string) => {
+  // Find the room containing this player
+  let playerRoom: GameRoom | undefined;
+  let player: Player | undefined;
+
+  for (const room of gameRooms.values()) {
+    player = room.players.get(playerid);
+    if (player) {
+      playerRoom = room;
+      break;
+    }
+  }
+  if( !playerRoom) return;
+  if( gameType === '2D') 
+  {
+    playerRoom.gameState.game2D = true;
+  }
+  else
+  {
+    playerRoom.gameState.game2D = false;
+  }
+ 
+
+}
+
 const handlePaddleMove_3D = (playerId: string, direction: number) => {
   // Find the room containing this player
   let playerRoom: GameRoom | undefined;
@@ -125,11 +155,11 @@ const handlePaddleMove_3D = (playerId: string, direction: number) => {
   if (!playerRoom || !player) return;
 
   // 🔧 FIX: Actually update the player's paddle position
-  player.paddleY = direction;
+  player.paddleY_3d = direction;
   
   // Also update in the gameState players map if it exists there
   if (playerRoom.gameState.players.has(playerId)) {
-    playerRoom.gameState.players.get(playerId)!.paddleY = direction;
+    playerRoom.gameState.players.get(playerId)!.paddleY_3d = direction;
   }
 
   // console.log(`Player ${playerId} moved paddle to position: ${direction}`);
@@ -263,11 +293,11 @@ const checkServerPaddleCollisions = (room: GameRoom) => {
 
   // Player 1 paddle collision (right side)
   if (player1 && ball.x > 55 && ball.x < 65 && 
-      Math.abs(ball.z - player1.paddleY) < 8 && 
+      Math.abs(ball.z - player1.paddleY_3d) < 8 && 
       Math.abs(ball.y - 50) < 16 && // paddle height
       ball.velocityX > 0) {
     
-    const hitOffset = (ball.z - player1.paddleY) / 8;
+    const hitOffset = (ball.z - player1.paddleY_3d) / 8;
     ball.velocityX = -Math.abs(ball.velocityX) * 1.05;
     ball.velocityY = Math.random() * (0.7 - 0.25) + 0.25;
     ball.velocityZ = hitOffset * 1.0;
@@ -277,11 +307,11 @@ const checkServerPaddleCollisions = (room: GameRoom) => {
 
   // Player 2 paddle collision (left side)
   if (player2 && ball.x > -65 && ball.x < -55 && 
-      Math.abs(ball.z - player2.paddleY) < 8 && 
+      Math.abs(ball.z - player2.paddleY_3d) < 8 && 
       Math.abs(ball.y - 50) < 16 &&
       ball.velocityX < 0) {
     
-    const hitOffset = (ball.z - player2.paddleY) / 8;
+    const hitOffset = (ball.z - player2.paddleY_3d) / 8;
     ball.velocityX = Math.abs(ball.velocityX) * 1.05;
     ball.velocityY = Math.random() * (0.7 - 0.25) + 0.25;
     ball.velocityZ = hitOffset * 1.0;
@@ -319,7 +349,7 @@ export const startGameLoop_3D = (room: GameRoom) => {
 };
 
 // Stop game loop
-const stopGameLoop_3D = (room: GameRoom) => {
+export const stopGameLoop_3D = (room: GameRoom) => {
   if (room.gameLoop) {
     resetServerBall(room);
     clearInterval(room.gameLoop);
@@ -353,7 +383,7 @@ export const broadcastGameState_3D = (room: GameRoom) => {
           gameRunning: room.gameState.gameRunning,
           players: Array.from(room.gameState.players.values()).map(p => ({
             id: p.id,
-            paddleY: p.paddleY,
+            paddleY: p.paddleY_3d,
             score: p.score,
             playerIndex: p.playerIndex
           })),
