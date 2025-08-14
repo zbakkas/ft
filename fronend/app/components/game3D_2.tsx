@@ -2,7 +2,7 @@
 import * as BABYLON from 'babylonjs';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import 'babylonjs-loaders';
-
+const COUNTDOWN_TIME =5; // 5 seconds countdown
 export default function Game3D() {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const sceneRef = useRef<BABYLON.Scene | null>(null);
@@ -36,7 +36,11 @@ export default function Game3D() {
     const [myScore, setMyScore] = useState<number>(0);
     const [opponentScore, setOpponentScore] = useState<number>(0);
 
+    //gameover
+    const [gameOver, setGameOver] = useState< string |boolean>(false);
 
+      // Countdown
+    const [countdown, setCountdown] = useState<number | null>(null);
 
     /////////////////////////////
     
@@ -364,7 +368,28 @@ export default function Game3D() {
     }, []);
     ////////////////////////////
   
-
+      // Add this useEffect to handle the countdown timer
+    useEffect(() => 
+    {
+        if (openTheGame && !gameRunning) 
+        {
+          // Start countdown when game opens but hasn't started yet
+          setCountdown(COUNTDOWN_TIME);
+        
+          const timer = setInterval(() => {
+            setCountdown(prev => {
+              if (prev === null || prev <= 1) {
+                clearInterval(timer);
+                return null; // Timer finished
+              }
+              return prev - 1;
+            });
+          }, 1000); // 1 second intervals
+      
+          // Cleanup function
+          return () => clearInterval(timer);
+        }
+    }, [openTheGame]);
 
     const connectToServer = () => 
     {
@@ -435,7 +460,7 @@ export default function Game3D() {
           break;
         case 'opponentDisconnected':
           // setMessage(data.message);
-        //   setGameOver(data.message);
+          setGameOver(data.message);
           setIsLoading(false);
           // setRoomId(null);
           setGameRunning(false);
@@ -465,7 +490,7 @@ export default function Game3D() {
             if (data.gameState?.players) {
                 const myPlayer = data.gameState.players.find((p: any) => p.id === myId);
                 const opponent = data.gameState.players.find((p: any) => p.id !== myId);
-                console.log('xxxGame state received:', { myPlayerPaddleY: myPlayer.paddleY, opponentPaddleY: opponent.paddleY });
+                // console.log('xxxGame state received:', { myPlayerPaddleY: myPlayer.paddleY, opponentPaddleY: opponent.paddleY });
                 if (myPlayer)
                 {
                   setP_me_PaddleY(myPlayer.paddleY);
@@ -503,7 +528,7 @@ export default function Game3D() {
             }
             break;
         case 'gameOver':
-        //   setGameOver(data.message);
+          setGameOver(data.message);
           setIsLoading(false);
           setGameRunning(false);
           console.log('Game Over:', data.message);
@@ -572,6 +597,8 @@ export default function Game3D() {
                     <div>🏓 Rome ID {roomId}</div>
 
                     <div>{myScore} - {opponentScore}</div>
+                    {gameOver&&<div>{gameOver}</div>}
+                    {countdown&& <div>{countdown}</div>}
                     <div className="text-xs mt-2 text-gray-300">Perfect medium height jumps!</div>
                 </div>
             </div>
