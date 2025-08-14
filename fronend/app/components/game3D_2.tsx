@@ -28,6 +28,14 @@ export default function Game3D() {
     const [gameRunning, setGameRunning] = useState<boolean>(false);
     const [openTheGame, setopenTheGame] = useState<boolean>(false);
 
+    // Ball state from server
+    const ballPositionRef = useRef({ x: 0, y: 57, z: -28.5 });
+    const ballVelocityRef = useRef({ x: 0, y: 0, z: 0 });
+
+    // Scores
+    const [myScore, setMyScore] = useState<number>(0);
+    const [opponentScore, setOpponentScore] = useState<number>(0);
+
 
 
     /////////////////////////////
@@ -49,7 +57,7 @@ export default function Game3D() {
             "camera",
             Math.PI/2,
             Math.PI/4,
-            120,
+            190,
             new BABYLON.Vector3(0, 55, -30),
             scene
         );
@@ -190,6 +198,23 @@ export default function Game3D() {
             paddle2.position = new BABYLON.Vector3(-60, 50, -28.5);
         });
 
+
+         // Update ball position from server data (replaces updateBallPhysics)
+         const updateBallFromServer = () => {
+            if (!ball) return;
+            
+            // Smoothly interpolate to server position for better visual experience
+            const serverPos = ballPositionRef.current;
+            const currentPos = ball.position;
+            
+            // Simple linear interpolation for smoother movement
+            const lerpFactor = 0.8; // Adjust this value (0-1) for smoothness vs accuracy
+            
+            ball.position.x = currentPos.x + (serverPos.x - currentPos.x) * lerpFactor;
+            ball.position.y = currentPos.y + (serverPos.y - currentPos.y) * lerpFactor;
+            ball.position.z = currentPos.z + (serverPos.z - currentPos.z) * lerpFactor;
+        };
+
         // Ball physics - MEDIUM JUMPS
         const updateBallPhysics = () => {
             if (!ball) return;
@@ -326,7 +351,8 @@ export default function Game3D() {
         engine.runRenderLoop(() => {
             if (scene) {
                 updatePaddles(); 
-                updateBallPhysics(); 
+                // updateBallPhysics(); 
+                updateBallFromServer(); // Use server ball position instead of physics
                 scene.render();
             }
         });
@@ -444,16 +470,37 @@ export default function Game3D() {
                 {
                   setP_me_PaddleY(myPlayer.paddleY);
                   P_2_paddleY_REF.current = myPlayer.paddleY;
-                //   setMyScore(myPlayer.score);
+                  setMyScore(myPlayer.score);
                 } 
                 if (opponent) 
                 {
                   setP_2_PaddleY(opponent.paddleY);
                     P_2_paddleY_REF.current = opponent.paddleY;
-                //   setOpponentScore(opponent.score);
+                  setOpponentScore(opponent.score);
                     
                 }
-              }
+
+            }
+
+            // 🔧 NEW: Update ball position from server
+            if (data.gameState) {
+                console.log('xxxBall position received:', {
+                    x: data.gameState.ballX,
+                    y: data.gameState.ballY,
+                    z: data.gameState.ballZ
+                });
+                ballPositionRef.current = {
+                    x: data.gameState.ballX || 0,
+                    y: data.gameState.ballY || 57,
+                    z: data.gameState.ballZ || -28.5
+                };
+                
+                ballVelocityRef.current = {
+                    x: data.gameState.ballVelocityX || 0,
+                    y: data.gameState.ballVelocityY || 0,
+                    z: data.gameState.ballVelocityZ || 0
+                };
+            }
             break;
         case 'gameOver':
         //   setGameOver(data.message);
@@ -523,6 +570,8 @@ export default function Game3D() {
                     <div>🏓 you are {connectionStatus}</div>
                     <div>🏓 you ID {playerId}</div>
                     <div>🏓 Rome ID {roomId}</div>
+
+                    <div>{myScore} - {opponentScore}</div>
                     <div className="text-xs mt-2 text-gray-300">Perfect medium height jumps!</div>
                 </div>
             </div>

@@ -30,7 +30,30 @@ export interface GameState {
   gameRunning: boolean;
   gameOver: boolean;
   gameId: string;
+  ballState: BallState;
 }
+
+export interface BallState {
+  x: number;
+  y: number;
+  z: number;
+  velocityX: number;
+  velocityY: number;
+  velocityZ: number;
+}
+
+// Add ball physics constants
+export const BALL_PHYSICS = {
+  gravity: -0.018,
+  ballRadius: 2,
+  tableY: 53,
+  tableMinX: -60,
+  tableMaxX: 60,
+  tableMinZ: -58,
+  tableMaxZ: 1,
+  bounceDamping: 0.65,
+  initialVelocity: { x: 1.2, y: 0.25, z: 0.4 }
+};
 
 export interface GameRoom {
   id: string;

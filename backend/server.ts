@@ -275,6 +275,7 @@ const createGameForTwoPlayers = (player1: { playerId: string; socket: any }, pla
   setTimeout(() => {
     room.gameState.gameRunning = true;
     startGameLoop(room);
+    
     broadcastGameState(room);
     
     room.players.forEach(player => {

@@ -16,7 +16,8 @@ import {
   c_WIN,
   PADDLE_SPEED,
   waitingPlayers,
-  COUNTDOWN_TIME
+  COUNTDOWN_TIME,
+  BALL_PHYSICS
 } from './ts/types';
 
 
@@ -131,44 +132,270 @@ const handlePaddleMove_3D = (playerId: string, direction: number) => {
     playerRoom.gameState.players.get(playerId)!.paddleY = direction;
   }
 
-  console.log(`Player ${playerId} moved paddle to position: ${direction}`);
+  // console.log(`Player ${playerId} moved paddle to position: ${direction}`);
 
   // Now broadcast the updated game state
   broadcastGameState_3D(playerRoom);
 }
 
-// Also, make sure your broadcastGameState_3D function is getting the updated data
-export const broadcastGameState_3D = (room: GameRoom) => {
- room.gameState.players.forEach(player => {
-   try {
-     const gameData = {
-       type: 'gameState_3D',
-       gameState: {
-         ballX: 0,
-         ballY: 0,
-         gameRunning: room.gameState.gameRunning,
-         players: Array.from(room.gameState.players.values()).map(p => ({
-           id: p.id,
-           paddleY: p.paddleY, // This should now have the updated position
-           score: p.score,
-           playerIndex: p.playerIndex
-         }))
-       },
-       yourPlayerIndex: player.playerIndex
-     };
+// // Also, make sure your broadcastGameState_3D function is getting the updated data
+// export const broadcastGameState_3D = (room: GameRoom) => {
+//  room.gameState.players.forEach(player => {
+//    try {
+//      const gameData = {
+//        type: 'gameState_3D',
+//        gameState: {
+//          ballX: 0,
+//          ballY: 0,
+//          gameRunning: room.gameState.gameRunning,
+//          players: Array.from(room.gameState.players.values()).map(p => ({
+//            id: p.id,
+//            paddleY: p.paddleY, // This should now have the updated position
+//            score: p.score,
+//            playerIndex: p.playerIndex
+//          }))
+//        },
+//        yourPlayerIndex: player.playerIndex
+//      };
      
-     console.log(`Broadcasting to player ${player.id}: paddleY = ${player.paddleY}`);
-     player.socket.send(JSON.stringify(gameData));
-   } catch (error) {
-     console.error('Error sending to player:', error);
-   }
- });
+//      console.log(`Broadcasting to player ${player.id}: paddleY = ${player.paddleY}`);
+//      player.socket.send(JSON.stringify(gameData));
+//    } catch (error) {
+//      console.error('Error sending to player:', error);
+//    }
+//  });
+// };
+
+
+
+
+
+
+
+// Server-side ball physics update
+const updateBallPhysics = (room: GameRoom) => {
+  const ball = room.gameState.ballState;
+  if (!ball) return;
+
+  // Apply gravity
+  ball.velocityY += BALL_PHYSICS.gravity;
+
+  // Update position
+  ball.x += ball.velocityX;
+  ball.y += ball.velocityY;
+  ball.z += ball.velocityZ;
+
+  // Table bounce
+  if (ball.y <= BALL_PHYSICS.tableY + BALL_PHYSICS.ballRadius && ball.velocityY < 0) {
+    if (ball.x >= BALL_PHYSICS.tableMinX && ball.x <= BALL_PHYSICS.tableMaxX &&
+        ball.z >= BALL_PHYSICS.tableMinZ && ball.z <= BALL_PHYSICS.tableMaxZ) {
+      
+      ball.y = BALL_PHYSICS.tableY + BALL_PHYSICS.ballRadius;
+      ball.velocityY = Math.abs(ball.velocityY) * BALL_PHYSICS.bounceDamping;
+      
+      // Ensure medium bounce height
+      if (ball.velocityY < 0.15) ball.velocityY = 0.18;
+      if (ball.velocityY > 0.55) ball.velocityY = 0.5;
+    }
+  }
+
+  // Wall bounces
+  if (ball.z <= BALL_PHYSICS.tableMinZ || ball.z >= BALL_PHYSICS.tableMaxZ) {
+    ball.velocityZ *= -1;
+    ball.z = ball.z <= BALL_PHYSICS.tableMinZ ? BALL_PHYSICS.tableMinZ : BALL_PHYSICS.tableMaxZ;
+  }
+
+  // Check paddle collisions
+  checkServerPaddleCollisions(room);
+  const { gameState } = room;
+  const players = Array.from(gameState.players.values());
+  const player1 = players.find(p => p.playerIndex === 0);
+  const player2 = players.find(p => p.playerIndex === 1);
+
+  // Reset if out of bounds
+  // if (ball.y < 20 || Math.abs(ball.x) > 100) {
+  //   resetServerBall(room);
+  // }
+
+  if(player1 && player2 )
+  {
+  // Ball passed Player 2’s side → Player 1 scores
+  if (ball.x < -100) {
+    resetServerBall(room);
+    player1.score++;
+    console.log(`Server: Player 1 scored! New score: ${player1.score}`);
+  }
+
+  // Ball passed Player 1’s side → Player 2 scores
+  if (ball.x > 100) {
+    resetServerBall(room);
+    player2.score++;
+    console.log(`Server: Player 2 scored! New score: ${player2.score}`);
+  }
+
+  // End game if any player reaches score of 5
+  if( player1.score >= c_WIN || player2.score >= c_WIN) 
+  {
+    gameState.gameRunning = false;
+    gameState.gameOver = true;
+    stopGameLoop_3D(room);
+    room.players.forEach(player => {
+      player.socket.send(JSON.stringify({
+        type: 'gameOver',
+        message: `Game over! You are ${player.score >= c_WIN ? 'the winner!' : 'the loser.'}`,
+      }));
+    });
+    return;
+  }
+
+  } 
+
 };
 
+// Server-side paddle collision detection
+const checkServerPaddleCollisions = (room: GameRoom) => {
+  const ball = room.gameState.ballState;
+  if (!ball) return;
 
+  const players = Array.from(room.gameState.players.values());
+  const player1 = players.find(p => p.playerIndex === 0); // Right paddle
+  const player2 = players.find(p => p.playerIndex === 1); // Left paddle
 
+  // Player 1 paddle collision (right side)
+  if (player1 && ball.x > 55 && ball.x < 65 && 
+      Math.abs(ball.z - player1.paddleY) < 8 && 
+      Math.abs(ball.y - 50) < 16 && // paddle height
+      ball.velocityX > 0) {
+    
+    const hitOffset = (ball.z - player1.paddleY) / 8;
+    ball.velocityX = -Math.abs(ball.velocityX) * 1.05;
+    ball.velocityY = Math.random() * (0.7 - 0.25) + 0.25;
+    ball.velocityZ = hitOffset * 1.0;
+    
+    console.log("Server: P1 hit - jump Y:", ball.velocityY);
+  }
 
+  // Player 2 paddle collision (left side)
+  if (player2 && ball.x > -65 && ball.x < -55 && 
+      Math.abs(ball.z - player2.paddleY) < 8 && 
+      Math.abs(ball.y - 50) < 16 &&
+      ball.velocityX < 0) {
+    
+    const hitOffset = (ball.z - player2.paddleY) / 8;
+    ball.velocityX = Math.abs(ball.velocityX) * 1.05;
+    ball.velocityY = Math.random() * (0.7 - 0.25) + 0.25;
+    ball.velocityZ = hitOffset * 1.0;
+    
+    console.log("Server: P2 hit - jump Y:", ball.velocityY);
+  }
+};
 
+// Reset ball on server
+const resetServerBall = (room: GameRoom) => {
+  const ball = room.gameState.ballState;
+  if (!ball) return;
+
+  ball.x = 0;
+  ball.y = BALL_PHYSICS.tableY + 5;
+  ball.z = -28.5;
+  ball.velocityX = Math.random() > 0.5 ? BALL_PHYSICS.initialVelocity.x : -BALL_PHYSICS.initialVelocity.x;
+  ball.velocityY = BALL_PHYSICS.initialVelocity.y;
+  ball.velocityZ = (Math.random() - 0.5) * 0.6;
+  
+  console.log("Server: Ball reset - Y velocity:", ball.velocityY);
+};
+
+// Start game loop for physics updates
+export const startGameLoop_3D = (room: GameRoom) => {
+  if (room.gameLoop) {
+    clearInterval(room.gameLoop);
+  }
+  console.log(`✅ ✅Starting game loop for room ${room.id}`);
+  
+  room.gameLoop = setInterval(() => {
+    updateBallPhysics(room);
+    broadcastGameState_3D(room);
+  }, 1000 / 60); // 60 FPS
+};
+
+// Stop game loop
+const stopGameLoop_3D = (room: GameRoom) => {
+  if (room.gameLoop) {
+    resetServerBall(room);
+    clearInterval(room.gameLoop);
+    room.gameLoop = undefined; // Changed from null to undefined
+  }
+};
+
+// Updated broadcast function to include ball state
+export const broadcastGameState_3D = (room: GameRoom) => {
+  room.gameState.players.forEach(player => {
+    try {
+
+      const ballState = room.gameState.ballState;
+      const isPlayer2 = player.playerIndex === 1;
+      
+      // Mirror ball position for player 2
+      const ballX = isPlayer2 ? -(ballState?.x || 0) : (ballState?.x || 0);
+      const ballZ = isPlayer2 ? -(ballState?.z || 0) + (-57) : (ballState?.z || 0); // Adjust Z offset if needed
+      const ballVelocityX = isPlayer2 ? -(ballState?.velocityX || 0) : (ballState?.velocityX || 0);
+      const ballVelocityZ = isPlayer2 ? -(ballState?.velocityZ || 0) : (ballState?.velocityZ || 0);
+
+      const gameData = {
+        type: 'gameState_3D',
+        gameState: {
+          ballX: ballX || 0,
+          ballY: room.gameState.ballState?.y || 0,
+          ballZ: room.gameState.ballState?.z || 0,
+          ballVelocityX: room.gameState.ballState?.velocityX || 0,
+          ballVelocityY: room.gameState.ballState?.velocityY || 0,
+          ballVelocityZ: room.gameState.ballState?.velocityZ || 0,
+          gameRunning: room.gameState.gameRunning,
+          players: Array.from(room.gameState.players.values()).map(p => ({
+            id: p.id,
+            paddleY: p.paddleY,
+            score: p.score,
+            playerIndex: p.playerIndex
+          })),
+
+        },
+        yourPlayerIndex: player.playerIndex
+      };
+      
+      player.socket.send(JSON.stringify(gameData));
+    } catch (error) {
+      console.error('Error sending to player:', error);
+    }
+  });
+};
+
+// // Updated handlePaddleMove_3D function
+// const handlePaddleMove_3D = (playerId: string, direction: number) => {
+//   let playerRoom: GameRoom | undefined;
+//   let player: Player | undefined;
+
+//   for (const room of gameRooms.values()) {
+//     player = room.players.get(playerId);
+//     if (player) {
+//       playerRoom = room;
+//       break;
+//     }
+//   }
+
+//   if (!playerRoom || !player) return;
+
+//   // Update paddle position with bounds checking
+//   const minZ = -50;
+//   const maxZ = -7;
+//   player.paddleY = Math.max(minZ, Math.min(maxZ, direction));
+  
+//   if (playerRoom.gameState.players.has(playerId)) {
+//     playerRoom.gameState.players.get(playerId)!.paddleY = player.paddleY;
+//   }
+
+//   // Don't broadcast immediately - let the game loop handle it
+//   // This prevents flooding the network with paddle updates
+// };
 
 
 

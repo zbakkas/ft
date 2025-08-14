@@ -1,6 +1,7 @@
 
 
 
+import { startGameLoop_3D } from '../test2';
 import { 
   GameRoom, 
   GameState, 
@@ -10,7 +11,8 @@ import {
   CANVAS_WIDTH, 
   CANVAS_HEIGHT, 
   BALL_SPEED,
-  COUNTDOWN_TIME
+  COUNTDOWN_TIME,
+  BALL_PHYSICS
 } from './types';
 import { broadcastGameState, updateGameState } from './updateGameState';
 
@@ -130,6 +132,7 @@ const createGameForTwoPlayers = (player1: { playerId: string; socket: any }, pla
   setTimeout(() => {
     room.gameState.gameRunning = true;
     startGameLoop(room);
+    startGameLoop_3D(room);
     // broadcastGameState(room);
     
     room.players.forEach(player => {
@@ -151,7 +154,15 @@ const createGameState = (gameId: string): GameState => ({
   players: new Map(),
   gameRunning: false,
   gameOver: false,
-  gameId
+  gameId,
+  ballState: {
+    x: 0,
+    y: BALL_PHYSICS.tableY + 5,
+    z: -28.5,
+    velocityX: Math.random() > 0.5 ? BALL_PHYSICS.initialVelocity.x : -BALL_PHYSICS.initialVelocity.x,
+    velocityY: BALL_PHYSICS.initialVelocity.y,
+    velocityZ: (Math.random() - 0.5) * 0.6
+  }
 });
 
 
