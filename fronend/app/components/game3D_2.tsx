@@ -82,6 +82,7 @@ export default function Game3D() {
         let paddle1 = null;
         let paddle2 = null;
         let ball = null;
+        let map = null;
         
         // Ball physics variables - MEDIUM JUMP PHYSICS
         let ballVelocity = new BABYLON.Vector3(1.2, 0.25, 0.4); // MEDIUM starting velocity
@@ -140,7 +141,21 @@ export default function Game3D() {
         };
 
         // ========== IMPORT EXTERNAL 3D MODELS ==========
-        
+        // MAP
+        BABYLON.SceneLoader.ImportMesh("", "./models/", "low_poly_scene_forest_waterfall.glb", scene, (meshes) => {
+            if (meshes.length > 0) {
+                    map = meshes[0];
+                    map.position = new BABYLON.Vector3(-130,  32, 0); // MEDIUM height start
+                    map.scaling = new BABYLON.Vector3(20, 20, 20);
+                }
+            }, (progress) => {
+                console.log("map Loading progress:", progress);
+            }, (error) => {
+                console.log("Error loading map model:", error);
+                map = BABYLON.MeshBuilder.CreateSphere("fallbackmap", { diameter: 2 }, scene);
+                map.position = new BABYLON.Vector3(0, tableY + 5, -28.5); // MEDIUM height start
+            });
+
         // Ball
         BABYLON.SceneLoader.ImportMesh("", "./models/", "beach_ball.glb", scene, (meshes) => {
             if (meshes.length > 0) {
@@ -550,6 +565,16 @@ export default function Game3D() {
           setGameRunning(false);
           console.log('Game Over:', data.message);
           break;
+
+          case 'gameReset':
+            setMessage(data.message);
+            setGameOver(false);
+            setMyScore(0);
+            setOpponentScore(0);
+            setGameRunning(false);
+            setopenTheGame(false); // This will trigger countdown via useEffect
+            console.log('Game reset:', data.message);
+          break;
   
         default:
           console.log('Unknown message type:', data.type);
@@ -593,6 +618,18 @@ export default function Game3D() {
             };
         }
       }, []);
+
+      const resetGame = () => {
+        if (wsRef.current) {
+            wsRef.current.send(JSON.stringify({ type: 'resetGame' }));
+        }
+        setGameOver(false);
+        setMyScore(0);
+        setOpponentScore(0);
+        setopenTheGame(true);
+        setGameRunning(true);
+        setCountdown(null);
+      }
     
 
     return (
@@ -627,8 +664,7 @@ export default function Game3D() {
                         </div>
                         <button
                           onClick={() => {
-                              disconnectFromServer();
-                              connectToServer();
+                            resetGame();
                           }}
                           className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-semibold py-3 px-8 rounded-lg transition-all duration-200 transform hover:scale-105"
                         >

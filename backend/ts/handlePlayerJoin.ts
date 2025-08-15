@@ -130,8 +130,12 @@ const createGameForTwoPlayers = (player1: { playerId: string; socket: any }, pla
 
   console.log(`Game created: ${gameId} - Player1: ${player1.playerId}, Player2: ${player2.playerId}`);
   
+
   // Auto-start the game after a brief delay
   setTimeout(() => {
+
+    console.log("🔅🔅vStarting game for players: ", room.gameState.players.size, "game over", room.gameState.gameOver);
+    if( room.gameState.players.size<=1 ) return;
     room.gameState.gameRunning = true;
     if( room.gameState.game2D ) {
     startGameLoop(room);

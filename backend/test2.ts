@@ -429,11 +429,115 @@ export const broadcastGameState_3D = (room: GameRoom) => {
 
 
 
+const handleResetGame = (playerId: string) => {
+  // Find the room containing this player
+  let playerRoom: GameRoom | undefined;
+  let player: Player | undefined;
 
+  for (const room of gameRooms.values()) {
+    player = room.players.get(playerId);
+    if (player) {
+      playerRoom = room;
+      break;
+    }
+  }
 
+  if (!playerRoom || !player) {
+    console.log(`Player ${playerId} not found in any room`);
+    return;
+  }
 
+  console.log(`🔄 Resetting game for room ${playerRoom.id}`);
 
+  // Stop current game loop if running
+  stopGameLoop_3D(playerRoom);
 
+  // Reset game state
+  playerRoom.gameState.gameRunning = false;
+  playerRoom.gameState.gameOver = false;
+  
+  // Reset ball state
+  playerRoom.gameState.ballState = {
+    x: 0,
+    y: BALL_PHYSICS.tableY + 5,
+    z: -28.5,
+    velocityX: Math.random() > 0.5 ? BALL_PHYSICS.initialVelocity.x : -BALL_PHYSICS.initialVelocity.x,
+    velocityY: BALL_PHYSICS.initialVelocity.y,
+    velocityZ: (Math.random() - 0.5) * 0.6
+  };
+
+  // Reset player scores and paddle positions
+  playerRoom.gameState.players.forEach(p => {
+    p.score = 0;
+    p.paddleY_3d = -28; // Reset to center position
+  });
+
+  // Reset player scores in the room's players map too
+  playerRoom.players.forEach(p => {
+    p.score = 0;
+    p.paddleY_3d = -28;
+  });
+
+  // Notify all players that the game has been reset
+  playerRoom.players.forEach(roomPlayer => {
+    try {
+      roomPlayer.socket.send(JSON.stringify({
+        type: 'gameReset',
+        message: 'Game has been reset! Get ready...'
+      }));
+    } catch (error) {
+      console.error('Error sending reset message to player:', error);
+    }
+  });
+
+  // Wait a moment, then notify about match found (similar to initial matchmaking)
+  setTimeout(() => {
+    playerRoom!.players.forEach(roomPlayer => {
+      try {
+        roomPlayer.socket.send(JSON.stringify({
+          type: 'matchFound',
+          message: 'Match restarted! Get ready to play!',
+          gameId: playerRoom!.id,
+          players: Array.from(playerRoom!.gameState.players.values()).map(p => ({
+            id: p.id,
+            paddleY: p.paddleY_3d,
+            score: p.score,
+            playerIndex: p.playerIndex
+          }))
+        }));
+      } catch (error) {
+        console.error('Error sending match found message to player:', error);
+      }
+    });
+  }, 500);
+
+  // Start countdown and then start the game
+  setTimeout(() => {
+    if (playerRoom && playerRoom.players.size === 2) {
+      // Start the game
+      playerRoom.gameState.gameRunning = true;
+      
+      // Notify players game started
+      playerRoom.players.forEach(roomPlayer => {
+        try {
+          roomPlayer.socket.send(JSON.stringify({
+            type: 'gameStarted',
+            message: 'Game started! Good luck!'
+          }));
+        } catch (error) {
+          console.error('Error sending game started message to player:', error);
+        }
+      });
+
+      // Start the game loop
+      startGameLoop_3D(playerRoom);
+      
+      console.log(`✅ Game restarted successfully for room ${playerRoom.id}`);
+    }
+  }, COUNTDOWN_TIME * 1000 + 500); // Wait for countdown + a bit extra
+
+  console.log(`Game reset initiated for room ${playerRoom.id}`);
+}
 
 
 
