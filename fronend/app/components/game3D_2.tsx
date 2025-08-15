@@ -2,7 +2,7 @@
 import * as BABYLON from 'babylonjs';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import 'babylonjs-loaders';
-import { Trophy, Users, Wifi, WifiOff } from 'lucide-react';
+import { GamepadIcon, Trophy, User, Users, Wifi, WifiOff } from 'lucide-react';
 const COUNTDOWN_TIME =5; // 5 seconds countdown
 export default function Game3D() {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -17,6 +17,7 @@ export default function Game3D() {
     const [roomId, setRoomId] = useState<string | null>(null);
     const [messagee, setMessage] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(false);
+    const [youropponentDisconnected, setyouropponentDisconnected] = useState<boolean>(false);
     
   
     // Paddle state
@@ -496,7 +497,8 @@ export default function Game3D() {
           setGameRunning(false);
           setopenTheGame(false);
           setGameRunning(false);
-          console.log('Opponent disconnected:', data.message);
+          setyouropponentDisconnected(true);
+          // console.log('Opponent disconnected:', data.message);
           break;
         case 'gameStarted':
           setMessage(data.message);
@@ -653,7 +655,7 @@ export default function Game3D() {
           </div>
         </div>
       )}
-            {gameOver&&
+            {gameOver &&
                  (
                     <div className="absolute inset-0 bg-black bg-opacity-90 flex items-center justify-center">
                       <div className="text-center space-y-6 max-w-md mx-auto px-6">
@@ -662,14 +664,24 @@ export default function Game3D() {
                         <div className="text-xl text-gray-300">
                           Final Score: {myScore} - {opponentScore}
                         </div>
-                        <button
+                        {!youropponentDisconnected ?<button
                           onClick={() => {
                             resetGame();
                           }}
                           className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-semibold py-3 px-8 rounded-lg transition-all duration-200 transform hover:scale-105"
                         >
                           Play Again
+                        </button>:
+                        <button
+                          onClick={() => {
+                            disconnectFromServer();
+                          }}
+                          className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-semibold py-3 px-8 rounded-lg transition-all duration-200 transform hover:scale-105"
+                        >
+                          quit
                         </button>
+                        
+                        }
                       </div>
                     </div>
                   )
@@ -695,6 +707,23 @@ export default function Game3D() {
                 
             </div> */}
 
+            {/* Controls Instructions  */}
+            {/* {gameRunning && ( */}
+                <div className="absolute bottom-6 right-6 bg-black bg-opacity-80 backdrop-blur-md text-white p-4 rounded-2xl border border-cyan-400/30 shadow-xl">
+                    <div className="text-sm space-y-2">
+                        <div className="text-cyan-400 font-semibold mb-2 flex items-center gap-2">
+                            <GamepadIcon className="w-4 h-4" />
+                            CONTROLS
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <kbd className="px-2 py-1 bg-gray-700 rounded text-xs">←</kbd>
+                            <kbd className="px-2 py-1 bg-gray-700 rounded text-xs">→</kbd>
+                            <span className="text-gray-300">Move Paddle</span>
+                        </div>
+                    </div>
+                </div>
+            {/* )} */}
+
 
 <div className="absolute top-4 left-4 bg-black bg-opacity-70 text-white p-4 rounded-xl backdrop-blur-sm min-w-48">
         <div className="space-y-2 text-sm">
@@ -709,20 +738,35 @@ export default function Game3D() {
           
           {playerId && (
             <div className="flex items-center space-x-2">
-              <Users className="w-4 h-4 text-blue-400" />
+              <User className="w-4 h-4 text-blue-400" />
               <span>ID: {playerId.slice(0, 8)}</span>
             </div>
           )}
-           {isLoading  && connectionStatus==="connecting" && (
+           {/* {isLoading  && connectionStatus==="connecting" && (
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-400"></div>
-      )}
+      )} */}
+
+{isLoading && connectionStatus !== "disconnected" && (
+                        <div className="flex items-center space-x-3">
+                            <div className="animate-spin rounded-full h-6 w-6 border-2 border-yellow-400 border-t-transparent"></div>
+                            <span className="text-yellow-400 font-medium">
+                                Finding match...
+                            </span>
+                        </div>
+                    )}
+                    
           
-          {roomId && (
-            <div className="text-xs text-gray-400">
-              Room: {roomId.slice(0, 8)}
-            </div>
-          )}
-          
+           {roomId && (
+                        <div className="flex items-center space-x-3">
+                            <Users className="w-5 h-5 text-purple-400" />
+                            <div>
+                                <div className="text-xs text-gray-400 uppercase tracking-wide">Room</div>
+                                <div className="font-mono text-purple-300 text-sm">
+                                    {roomId.slice(0, 8)}
+                                </div>
+                            </div>
+                        </div>
+                    )}
           
         </div>
       </div>

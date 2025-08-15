@@ -211,9 +211,9 @@ const updateBallPhysics = (room: GameRoom) => {
   ball.velocityY += BALL_PHYSICS.gravity;
 
   // Update position
-  ball.x += ball.velocityX;
-  ball.y += ball.velocityY;
-  ball.z += ball.velocityZ;
+  ball.x += ball.velocityX*1.2;
+  ball.y += ball.velocityY*1.2;
+  ball.z += ball.velocityZ*1.2;
 
   // Table bounce
   if (ball.y <= BALL_PHYSICS.tableY + BALL_PHYSICS.ballRadius && ball.velocityY < 0) {
@@ -251,15 +251,15 @@ const updateBallPhysics = (room: GameRoom) => {
   {
   // Ball passed Player 2’s side → Player 1 scores
   if (ball.x < -100) {
-    resetServerBall(room);
     player1.score++;
+    resetServerBall(room);
     console.log(`Server: Player 1 scored! New score: ${player1.score}`);
   }
 
   // Ball passed Player 1’s side → Player 2 scores
   if (ball.x > 100) {
-    resetServerBall(room);
     player2.score++;
+    resetServerBall(room);
     console.log(`Server: Player 2 scored! New score: ${player2.score}`);
   }
 
@@ -487,7 +487,8 @@ const handleResetGame = (playerId: string) => {
       console.log(`Player ${p.id} has not restarted yet.`);
     }
   });
-  if( !isallpalyersrestarted ) return;
+
+  if( !isallpalyersrestarted  || playerRoom.gameState.players.size<=1) return;
   isallpalyersrestarted =true;
   playerRoom.gameState.players.forEach(p => {
     
