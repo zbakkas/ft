@@ -74,7 +74,8 @@ const createGameForTwoPlayers = (player1: { playerId: string; socket: any }, pla
     playerIndex: 0,
     paddleY: 200, // Initial position for player 1
     paddleY_3d: -28, // Initial position for player 1 in 3D
-    socket: player1.socket
+    socket: player1.socket,
+    isreastarded: false // Initialize as not restarted
   };
 
   const gamePlayer2: Player = {
@@ -84,7 +85,8 @@ const createGameForTwoPlayers = (player1: { playerId: string; socket: any }, pla
     playerIndex: 1,
     paddleY:200,
     paddleY_3d: -28, // Initial position for player 2 in 3D
-    socket: player2.socket
+    socket: player2.socket,
+    isreastarded: false // Initialize as not restarted
   };
 
   // Add players to room

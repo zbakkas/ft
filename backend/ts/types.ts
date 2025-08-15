@@ -20,6 +20,7 @@ export interface Player {
   paddleY: number;
   paddleY_3d: number;
   socket: any;
+  isreastarded: boolean; // true if player is restarted
 }
 
 export interface GameState {

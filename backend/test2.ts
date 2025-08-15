@@ -455,6 +455,7 @@ const handleResetGame = (playerId: string) => {
   // Reset game state
   playerRoom.gameState.gameRunning = false;
   playerRoom.gameState.gameOver = false;
+  player.isreastarded = true; // Mark player as restarted
   
   // Reset ball state
   playerRoom.gameState.ballState = {
@@ -478,7 +479,23 @@ const handleResetGame = (playerId: string) => {
     p.paddleY_3d = -28;
   });
 
-  // Notify all players that the game has been reset
+  // Notify all players that the game has been reset if all want to restart
+  let isallpalyersrestarted = true;
+  playerRoom.gameState.players.forEach(p => {
+    if (!p.isreastarded) {
+      isallpalyersrestarted = false;
+      console.log(`Player ${p.id} has not restarted yet.`);
+    }
+  });
+  if( !isallpalyersrestarted ) return;
+  isallpalyersrestarted =true;
+  playerRoom.gameState.players.forEach(p => {
+    
+      p.isreastarded = false; // Mark all players as restarted
+      console.log(`Player ${p.id} has restarted.`);
+    
+  });
+
   playerRoom.players.forEach(roomPlayer => {
     try {
       roomPlayer.socket.send(JSON.stringify({
