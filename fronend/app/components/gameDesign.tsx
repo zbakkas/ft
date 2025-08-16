@@ -138,14 +138,14 @@ useEffect(() => {
           <div> {opponentScore}</div>
         </div>
 
-         {/* Add this to your JSX, inside the game area div where you want to display the countdown */}
-{countdown !== null && (
-  <div className="absolute inset-0 flex items-center justify-center ">
-    <div className="text-9xl font-bold text-white/90 px-8 py-4 rounded-lg z-4">
-      {countdown}
-    </div>
-  </div>
-)}
+        {/* Add this to your JSX, inside the game area div where you want to display the countdown */}
+        {countdown !== null && (
+            <div className="absolute inset-0 flex items-center justify-center ">
+            <div className="text-9xl font-bold text-white/90 px-8 py-4 rounded-lg z-4">
+            {countdown}
+            </div>
+            </div>
+        )}
         {gameOver && (
           <h1 className='absolute font-bold text-6xl text-center z-4 inset-0 flex items-center justify-center'>{gameOver}</h1>
         )}
