@@ -44,12 +44,11 @@ export default function MultiplayerPongGame_2D() {
   const [gameOver, setGameOver] = useState< string |boolean>(false);
 
 
-  const isConnectingRef = useRef(false); // ✅ Add this to prevent double connections
+
 
   const connectToServer = () => 
   {
-    if (connectionStatus === 'connected' || isConnectingRef.current) 
-    {
+    if (connectionStatus === 'connected') {
       // If already connected, disconnect
       if (wsRef.current) {
         wsRef.current.close();
@@ -59,8 +58,6 @@ export default function MultiplayerPongGame_2D() {
 
     const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001/ws';
     console.log('Attempting to connect to:', wsUrl);
-    isConnectingRef.current = true; // ✅ Reset connecting flag
-
 
     setConnectionStatus('connecting');
 
@@ -71,8 +68,6 @@ export default function MultiplayerPongGame_2D() {
       console.log('✅ Connected to WebSocket');
       setConnectionStatus('connected');
       setIsLoading(true);
-      isConnectingRef.current = false; // ✅ Reset connecting flag
-
     };
 
     ws.onmessage = (event) => {
@@ -97,16 +92,12 @@ export default function MultiplayerPongGame_2D() {
       setIsLoading(false);
       setGameRunning(false);
       setopenTheGame(false);
-      isConnectingRef.current = false; // ✅ Reset connecting flag
-
     };
 
     ws.onerror = (error) => {
       console.error('❌ WebSocket error:', error);
       setConnectionStatus('disconnected');
       wsRef.current = null;
-      isConnectingRef.current = false; // ✅ Reset connecting flag
-
     };
   };
   
@@ -250,21 +241,8 @@ export default function MultiplayerPongGame_2D() {
   }, []);
 
   useEffect(() => {
-     // Only connect if not already connected or connecting
-     if (connectionStatus === 'disconnected' && !isConnectingRef.current) {
-      console.log('⚽️ Component mounted, connecting to server...');
-      connectToServer();
-    }
-
-    // Cleanup function to disconnect on unmount
-    return () => {
-      if (wsRef.current) {
-        console.log('🧹 Component unmounting, disconnecting...');
-        wsRef.current.close();
-        wsRef.current = null;
-        isConnectingRef.current = false;
-      }
-    };
+    console.log('⚽️⚽️Component mounted, connecting to server...');
+    connectToServer();
   }, []);
 
   const disconnectFromServer = () => {

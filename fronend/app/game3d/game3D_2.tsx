@@ -43,10 +43,7 @@ export default function Game3D() {
 
       // Countdown
     const [countdown, setCountdown] = useState<number | null>(null);
-
-
-    const isConnectingRef = useRef(false); // ✅ Add this to prevent double connections
-
+    
 
     /////////////////////////////
     
@@ -414,7 +411,7 @@ export default function Game3D() {
 
     const connectToServer = () => 
     {
-      if (connectionStatus === 'connected' || isConnectingRef.current) {
+      if (connectionStatus === 'connected') {
         // If already connected, disconnect
         if (wsRef.current) {
           wsRef.current.close();
@@ -424,8 +421,7 @@ export default function Game3D() {
   
       const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001/ws';
       console.log('Attempting to connect to:', wsUrl);
-      isConnectingRef.current = true; // ✅ Set connecting flag
-
+  
       setConnectionStatus('connecting');
   
       const ws = new WebSocket(wsUrl);
@@ -435,7 +431,6 @@ export default function Game3D() {
         console.log('✅ Connected to WebSocket');
         setConnectionStatus('connected');
         setIsLoading(true);
-        isConnectingRef.current = false; // ✅ Reset connecting flag
       };
   
       ws.onmessage = (event) => {
@@ -453,16 +448,12 @@ export default function Game3D() {
       ws.onclose = (event) => {
         console.log('❌ WebSocket disconnected', event.code, event.reason);
         setConnectionStatus('disconnected');
-        isConnectingRef.current = false; // ✅ Reset connecting flag
-
       };
   
       ws.onerror = (error) => {
         console.error('❌ WebSocket error:', error);
         setConnectionStatus('disconnected');
         wsRef.current = null;
-        isConnectingRef.current = false; // ✅ Reset connecting flag
-
       };
     };
     const disconnectFromServer = () => {
@@ -616,38 +607,19 @@ export default function Game3D() {
 
     useEffect(() => {
         connectToServer();
+        if( wsRef.current ) 
+        {
+            wsRef.current.onopen = () => 
+            {
+                wsRef.current?.send(JSON.stringify(
+                {
 
+                    type: 'gameType', 
+                    game:'3D'
 
-          // Only connect if not already connected or connecting
-    if (connectionStatus === 'disconnected' && !isConnectingRef.current) {
-      console.log('⚽️ Component mounted, connecting to server...');
-      connectToServer();
-
-      if( wsRef.current ) 
-      {
-          wsRef.current.onopen = () => 
-          {
-              wsRef.current?.send(JSON.stringify(
-              {
-
-                  type: 'gameType', 
-                  game:'3D'
-
-              }));
-          };
-      }
-
-    }
-
-    // Cleanup function to disconnect on unmount
-    return () => {
-      if (wsRef.current) {
-        console.log('🧹 Component unmounting, disconnecting...');
-        wsRef.current.close();
-        wsRef.current = null;
-        isConnectingRef.current = false;
-      }
-    };
+                }));
+            };
+        }
       }, []);
 
       const resetGame = () => {

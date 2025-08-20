@@ -10,21 +10,21 @@ export default function Home() {
         <p className="text-xl text-gray-300 mb-12">Choose your game mode</p>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl">
-          <Link 
+          <a 
             href="/game2d"
             className="bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white font-bold py-6 px-8 rounded-lg transform transition hover:scale-105 shadow-lg block text-center"
           >
             <div className="text-2xl mb-2">🏓</div>
             <div>Multiplayer Pong</div>
-          </Link>
+          </a>
           
-          <Link 
+          <a 
             href="/game3d"
             className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold py-6 px-8 rounded-lg transform transition hover:scale-105 shadow-lg block text-center"
           >
             <div className="text-2xl mb-2">🎮</div>
             <div>3D Game</div>
-          </Link>
+          </a>
           
           <a 
             href="/offline"
