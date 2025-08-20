@@ -51,74 +51,11 @@ start();
 // gameLogic.ts - Game logic functions
 ///////////////////////////////////////////////////////////////////////////
 
-import { handlePlayerJoin, handlePlayerJoin_2vs2 } from './ts/handlePlayerJoin';
+import { handlePlayerJoin, handlePlayerJoin_2vs2, handlePlayerJoin_3d } from './ts/handlePlayerJoin';
 import { handlePlayerDisconnect } from './ts/handlePlayerDisconnect';
 import { handlePaddleMove, handlePaddleMove_2vs2 } from './ts/handlePaddleMove';
 
 ////////////////////////////////////////////////////////////////////////////
-
-
-
-
-
-
-
-
-
-// WebSocket route
-// fastify.register(async function (fastify) {
-//   fastify.get('/ws', { websocket: true }, (connection, req) => {
-//     const playerId = Math.random().toString(36).substring(7);
-//     console.log(`Player ${playerId} connected`);
-
-//     // Automatically start matchmaking when player connects
-    
-//     handlePlayerJoin(connection, playerId);
-//     handlePlayerJoin_2vs2(connection, playerId);
-
-//     connection.socket.on('message', (message: { toString: () => string; }) => {
-//       try {
-//         const data = JSON.parse(message.toString());
-        
-//         switch (data.type) {
-//           case 'gameType':
-//             get_params(playerId, data.game);
-//             break;
-//           case 'paddleMove':
-//             handlePaddleMove(playerId, data.direction);
-//             break;
-
-//             case 'paddleMove2vs2':
-//               handlePaddleMove_2vs2(playerId, data.direction);
-//               break;
-
-//           case 'paddleMove3D':
-//             handlePaddleMove_3D(playerId, data.direction);
-//             break;
-            
-//           case 'startGame':
-//             handleStartGame(playerId);
-//             break;
-            
-//           case 'pauseGame':
-//             handlePauseGame(playerId);
-//             break;
-            
-//           case 'resetGame':
-//             handleResetGame(playerId);
-//             break;
-//         }
-//       } catch (error) {
-//         console.error('Error processing message:', error);
-//       }
-//     });
-
-//     connection.socket.on('close', () => {
-//       handlePlayerDisconnect(playerId);
-//     });
-//   });
-// });
-
 
 
 // URL-based game mode selection approach
@@ -134,7 +71,7 @@ fastify.register(async function (fastify) {
     setupMessageHandlers(connection, playerId, '1v1');
   });
 
-  // 1v1 specific endpoint
+  // 1v1 2D specific endpoint
   fastify.get('/ws/1v1', { websocket: true }, (connection, req) => {
     const playerId = Math.random().toString(36).substring(7);
     console.log(`Player ${playerId} connected to 1v1 mode`);
@@ -142,6 +79,15 @@ fastify.register(async function (fastify) {
     handlePlayerJoin(connection, playerId);
     
     setupMessageHandlers(connection, playerId, '1v1');
+  });
+  // 1v1 3D specific endpoint
+  fastify.get('/ws/3d', { websocket: true }, (connection, req) => {
+    const playerId = Math.random().toString(36).substring(7);
+    console.log(`Player ${playerId} connected to 3d mode`);
+    
+    handlePlayerJoin_3d(connection, playerId);
+    
+    setupMessageHandlers(connection, playerId, '3d');
   });
 
   // 2v2 specific endpoint
@@ -170,15 +116,15 @@ const setupMessageHandlers = (connection: any, playerId: string, gameMode: strin
           break;
           
         case 'paddleMove':
-          if (gameMode === '1v1') {
+          // if (gameMode === '1v1') {
             handlePaddleMove(playerId, data.direction);
-          }
+          // }
           break;
 
         case 'paddleMove2vs2':
-          if (gameMode === '2v2') {
+          // if (gameMode === '2v2') {
             handlePaddleMove_2vs2(playerId, data.direction);
-          }
+          // }
           break;
 
         case 'paddleMove3D':

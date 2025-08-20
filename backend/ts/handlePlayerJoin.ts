@@ -8,11 +8,13 @@ import {
   Player, 
   gameRooms, 
   waitingPlayers,
+  waitingPlayers2vs2,
   CANVAS_WIDTH, 
   CANVAS_HEIGHT, 
   BALL_SPEED,
   COUNTDOWN_TIME,
-  BALL_PHYSICS
+  BALL_PHYSICS,
+  waitingPlayers3d
 } from './types';
 import { broadcastGameState, broadcastGameState_2vs, updateGameState, updateGameState_2vs2 } from './updateGameState';
 
@@ -47,7 +49,43 @@ export const  handlePlayerJoin = (connection: any, playerId: string) => {
       waitingPlayers: waitingPlayers.length
     }));
     
-    console.log(`Player ${playerId} added to waiting list. Total waiting: ${waitingPlayers.length}`);
+    console.log(`Player ${playerId} added to waiting list 1VS1 🏓. Total waiting: ${waitingPlayers.length}`);
+  }
+};
+
+
+///3D version of the matchmaking system
+export const  handlePlayerJoin_3d = (connection: any, playerId: string) => {
+  console.log(`Player ${playerId} looking for match...`);
+  
+
+  connection.socket.send(JSON.stringify({
+    type: 'playerId',
+    message: 'playerId is ' + playerId,
+    playerId: playerId
+  }));
+
+  // Check if there's a waiting player
+  if (waitingPlayers3d.length > 0) 
+  {
+    // Match with waiting player
+    const waitingPlayer = waitingPlayers3d.shift()!;
+    createGameForTwoPlayers(waitingPlayer, { playerId, socket: connection.socket });
+    
+  } 
+  else 
+  {
+    // Add to waiting list
+    waitingPlayers3d.push({ playerId, socket: connection.socket });
+    
+    // Notify player they're waiting
+    connection.socket.send(JSON.stringify({
+      type: 'waitingForOpponent',
+      message: 'Waiting for an opponent...',
+      waitingPlayers3d: waitingPlayers3d.length
+    }));
+    
+    console.log(`Player ${playerId} added to waiting list 3D 🏓. Total waiting: ${waitingPlayers3d.length}`);
   }
 };
 
@@ -219,34 +257,34 @@ export const  handlePlayerJoin_2vs2 = (connection: any, playerId: string) => {
   }));
 
   // Check if there's a waiting player
-  if (waitingPlayers.length > 2) 
+  if (waitingPlayers2vs2.length > 2) 
   {
-    for (let i = 0; i < waitingPlayers.length; i++) 
+    for (let i = 0; i < waitingPlayers2vs2.length; i++) 
     {
     
-        console.log(`${i} ==>Player ${waitingPlayers[i].playerId}  is already in the waiting list.`);
+        console.log(`${i} ==>Player ${waitingPlayers2vs2[i].playerId}  is already in the waiting list.`);
  
     }
 
-    console.log(" ❗️matching players... waitingPlayers.length: ", waitingPlayers.length);
+    console.log(" ❗️matching players... waitingPlayers2vs2.length: ", waitingPlayers2vs2.length);
     // Match with waiting player
-    const waitingPlayer = waitingPlayers.shift()!;
-    createGameForFourPlayers(waitingPlayers[0], waitingPlayers[1],waitingPlayer,{ playerId, socket: connection.socket });
+    const waitingPlayer = waitingPlayers2vs2.shift()!;
+    createGameForFourPlayers(waitingPlayers2vs2[0], waitingPlayers2vs2[1],waitingPlayer,{ playerId, socket: connection.socket });
     
   } 
   else 
   {
     // Add to waiting list
-    waitingPlayers.push({ playerId, socket: connection.socket });
+    waitingPlayers2vs2.push({ playerId, socket: connection.socket });
     
     // Notify player they're waiting
     connection.socket.send(JSON.stringify({
       type: 'waitingForOpponent',
       message: 'Waiting for an opponent...',
-      waitingPlayers: waitingPlayers.length
+      waitingPlayers2vs2: waitingPlayers2vs2.length
     }));
     
-    console.log(`Player ${playerId} added to waiting list. Total waiting: ${waitingPlayers.length}`);
+    console.log(`Player ${playerId} added to waiting list 2VS2🏓🏓. Total waiting: ${waitingPlayers2vs2.length}`);
   }
 };
 
