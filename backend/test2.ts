@@ -51,9 +51,9 @@ start();
 // gameLogic.ts - Game logic functions
 ///////////////////////////////////////////////////////////////////////////
 
-import { handlePlayerJoin } from './ts/handlePlayerJoin';
+import { handlePlayerJoin, handlePlayerJoin_2vs2 } from './ts/handlePlayerJoin';
 import { handlePlayerDisconnect } from './ts/handlePlayerDisconnect';
-import { handlePaddleMove } from './ts/handlePaddleMove';
+import { handlePaddleMove, handlePaddleMove_2vs2 } from './ts/handlePaddleMove';
 
 ////////////////////////////////////////////////////////////////////////////
 
@@ -66,52 +66,155 @@ import { handlePaddleMove } from './ts/handlePaddleMove';
 
 
 // WebSocket route
+// fastify.register(async function (fastify) {
+//   fastify.get('/ws', { websocket: true }, (connection, req) => {
+//     const playerId = Math.random().toString(36).substring(7);
+//     console.log(`Player ${playerId} connected`);
+
+//     // Automatically start matchmaking when player connects
+    
+//     handlePlayerJoin(connection, playerId);
+//     handlePlayerJoin_2vs2(connection, playerId);
+
+//     connection.socket.on('message', (message: { toString: () => string; }) => {
+//       try {
+//         const data = JSON.parse(message.toString());
+        
+//         switch (data.type) {
+//           case 'gameType':
+//             get_params(playerId, data.game);
+//             break;
+//           case 'paddleMove':
+//             handlePaddleMove(playerId, data.direction);
+//             break;
+
+//             case 'paddleMove2vs2':
+//               handlePaddleMove_2vs2(playerId, data.direction);
+//               break;
+
+//           case 'paddleMove3D':
+//             handlePaddleMove_3D(playerId, data.direction);
+//             break;
+            
+//           case 'startGame':
+//             handleStartGame(playerId);
+//             break;
+            
+//           case 'pauseGame':
+//             handlePauseGame(playerId);
+//             break;
+            
+//           case 'resetGame':
+//             handleResetGame(playerId);
+//             break;
+//         }
+//       } catch (error) {
+//         console.error('Error processing message:', error);
+//       }
+//     });
+
+//     connection.socket.on('close', () => {
+//       handlePlayerDisconnect(playerId);
+//     });
+//   });
+// });
+
+
+
+// URL-based game mode selection approach
 fastify.register(async function (fastify) {
+  // Default WebSocket endpoint (could default to 1v1)
   fastify.get('/ws', { websocket: true }, (connection, req) => {
     const playerId = Math.random().toString(36).substring(7);
-    console.log(`Player ${playerId} connected`);
-
-    // Automatically start matchmaking when player connects
+    console.log(`Player ${playerId} connected to default endpoint (1v1)`);
+    
+    // Default to 1v1 mode
     handlePlayerJoin(connection, playerId);
+    
+    setupMessageHandlers(connection, playerId, '1v1');
+  });
 
-    connection.socket.on('message', (message: { toString: () => string; }) => {
-      try {
-        const data = JSON.parse(message.toString());
-        
-        switch (data.type) {
-          case 'gameType':
-            get_params(playerId, data.game);
-            break;
-          case 'paddleMove':
-            handlePaddleMove(playerId, data.direction);
-            break;
+  // 1v1 specific endpoint
+  fastify.get('/ws/1v1', { websocket: true }, (connection, req) => {
+    const playerId = Math.random().toString(36).substring(7);
+    console.log(`Player ${playerId} connected to 1v1 mode`);
+    
+    handlePlayerJoin(connection, playerId);
+    
+    setupMessageHandlers(connection, playerId, '1v1');
+  });
 
-          case 'paddleMove3D':
-            handlePaddleMove_3D(playerId, data.direction);
-            break;
-            
-          case 'startGame':
-            handleStartGame(playerId);
-            break;
-            
-          case 'pauseGame':
-            handlePauseGame(playerId);
-            break;
-            
-          case 'resetGame':
-            handleResetGame(playerId);
-            break;
-        }
-      } catch (error) {
-        console.error('Error processing message:', error);
-      }
-    });
-
-    connection.socket.on('close', () => {
-      handlePlayerDisconnect(playerId);
-    });
+  // 2v2 specific endpoint
+  fastify.get('/ws/2v2', { websocket: true }, (connection, req) => {
+    const playerId = Math.random().toString(36).substring(7);
+    console.log(`Player ${playerId} connected to 2v2 mode`);
+    
+    handlePlayerJoin_2vs2(connection, playerId);
+    
+    setupMessageHandlers(connection, playerId, '2v2');
   });
 });
+
+// Shared message handler setup
+const setupMessageHandlers = (connection: any, playerId: string, gameMode: string) => {
+  // Store the game mode for this player
+  // playerGameModes.set(playerId, gameMode);
+  
+  connection.socket.on('message', (message: { toString: () => string; }) => {
+    try {
+      const data = JSON.parse(message.toString());
+      
+      switch (data.type) {
+        case 'gameType':
+          get_params(playerId, data.game);
+          break;
+          
+        case 'paddleMove':
+          if (gameMode === '1v1') {
+            handlePaddleMove(playerId, data.direction);
+          }
+          break;
+
+        case 'paddleMove2vs2':
+          if (gameMode === '2v2') {
+            handlePaddleMove_2vs2(playerId, data.direction);
+          }
+          break;
+
+        case 'paddleMove3D':
+          handlePaddleMove_3D(playerId, data.direction);
+          break;
+          
+        case 'startGame':
+          handleStartGame(playerId);
+          break;
+          
+        case 'pauseGame':
+          handlePauseGame(playerId);
+          break;
+          
+        case 'resetGame':
+          handleResetGame(playerId);
+          break;
+      }
+    } catch (error) {
+      console.error('Error processing message:', error);
+    }
+  });
+
+  connection.socket.on('close', () => {
+    // playerGameModes.delete(playerId);
+    handlePlayerDisconnect(playerId);
+  });
+
+  // Send confirmation of game mode
+  connection.socket.send(JSON.stringify({
+    type: 'connected',
+    playerId: playerId,
+    gameMode: gameMode,
+    message: `Connected in ${gameMode} mode. Searching for match...`
+  }));
+};
 
 
 const get_params = (playerid:string , gameType:string) => {
@@ -127,15 +230,14 @@ const get_params = (playerid:string , gameType:string) => {
     }
   }
   if( !playerRoom) return;
-  if( gameType === '2D') 
-  {
-    playerRoom.gameState.game2D = true;
-  }
-  else
+  if( gameType === '3D') 
   {
     playerRoom.gameState.game2D = false;
   }
- 
+  if( gameType === '2vs2') 
+  {
+    playerRoom.gameState.game2vs2 = true;
+  }
 
 }
 

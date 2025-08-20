@@ -34,6 +34,7 @@ export interface GameState {
   gameId: string;
   ballState: BallState;
   game2D:boolean;
+  game2vs2:boolean;
 }
 
 export interface BallState {

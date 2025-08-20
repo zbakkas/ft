@@ -12,7 +12,7 @@ const BALL_SPEED =6;
 const COUNTDOWN_TIME = 5; // Countdown time in seconds
 
 
-export default function MultiplayerPongGame_test2() {
+export default function MultiplayerPongGame_2D() {
   const wsRef = useRef<WebSocket | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
   const [playerId, setPlayerId] = useState<string | null>(null);
@@ -44,11 +44,12 @@ export default function MultiplayerPongGame_test2() {
   const [gameOver, setGameOver] = useState< string |boolean>(false);
 
 
-
+  const isConnectingRef = useRef(false); // ✅ Add this to prevent double connections
 
   const connectToServer = () => 
   {
-    if (connectionStatus === 'connected') {
+    if (connectionStatus === 'connected' || isConnectingRef.current) 
+    {
       // If already connected, disconnect
       if (wsRef.current) {
         wsRef.current.close();
@@ -58,6 +59,8 @@ export default function MultiplayerPongGame_test2() {
 
     const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001/ws';
     console.log('Attempting to connect to:', wsUrl);
+    isConnectingRef.current = true; // ✅ Reset connecting flag
+
 
     setConnectionStatus('connecting');
 
@@ -68,6 +71,8 @@ export default function MultiplayerPongGame_test2() {
       console.log('✅ Connected to WebSocket');
       setConnectionStatus('connected');
       setIsLoading(true);
+      isConnectingRef.current = false; // ✅ Reset connecting flag
+
     };
 
     ws.onmessage = (event) => {
@@ -92,12 +97,16 @@ export default function MultiplayerPongGame_test2() {
       setIsLoading(false);
       setGameRunning(false);
       setopenTheGame(false);
+      isConnectingRef.current = false; // ✅ Reset connecting flag
+
     };
 
     ws.onerror = (error) => {
       console.error('❌ WebSocket error:', error);
       setConnectionStatus('disconnected');
       wsRef.current = null;
+      isConnectingRef.current = false; // ✅ Reset connecting flag
+
     };
   };
   
@@ -241,7 +250,21 @@ export default function MultiplayerPongGame_test2() {
   }, []);
 
   useEffect(() => {
-    connectToServer();
+     // Only connect if not already connected or connecting
+     if (connectionStatus === 'disconnected' && !isConnectingRef.current) {
+      console.log('⚽️ Component mounted, connecting to server...');
+      connectToServer();
+    }
+
+    // Cleanup function to disconnect on unmount
+    return () => {
+      if (wsRef.current) {
+        console.log('🧹 Component unmounting, disconnecting...');
+        wsRef.current.close();
+        wsRef.current = null;
+        isConnectingRef.current = false;
+      }
+    };
   }, []);
 
   const disconnectFromServer = () => {
