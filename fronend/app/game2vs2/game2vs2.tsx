@@ -7,9 +7,8 @@ const PADDLE_WIDTH = 10;
 const PADDLE_HEIGHT = 80;
 const BALL_SIZE = 15;
 const PADDLE_SPEED = 5;
-const BALL_SPEED =6;
+const BALL_SPEED = 6;
 const COUNTDOWN_TIME = 5; // Countdown time in seconds
-
 
 export default function Game2vs2() {
   const wsRef = useRef<WebSocket | null>(null);
@@ -21,7 +20,6 @@ export default function Game2vs2() {
   const [messagee, setMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   
-
   // Paddle state
   const [P_me_paddleY, setP_me_PaddleY] = useState<number>(200); // Starting position
   const [P_2_paddleY, setP_2_PaddleY] = useState<number>(200); // Starting position
@@ -41,13 +39,9 @@ export default function Game2vs2() {
   const [opponentScore, setOpponentScore] = useState<number>(0);
 
   //gameover
-  const [gameOver, setGameOver] = useState< string |boolean>(false);
+  const [gameOver, setGameOver] = useState<string | boolean>(false);
 
-
-
-
-  const connectToServer = () => 
-  {
+  const connectToServer = () => {
     if (connectionStatus === 'connected') {
       // If already connected, disconnect
       if (wsRef.current) {
@@ -101,8 +95,6 @@ export default function Game2vs2() {
     };
   };
 
-
-  
   const handleServerMessage = useCallback((data: any) => {
     switch (data.type) {
       case 'matchFound':
@@ -118,18 +110,15 @@ export default function Game2vs2() {
           const myPlayer = data.players.find((p: any) => p.playerIndex === 0 || p.playerIndex === 1);
           const opponent = data.players.find((p: any) => p.playerIndex === 2 || p.playerIndex === 3);
           
-          if (player_n_ref.current !== null && (player_n_ref.current  === 1 || player_n_ref.current  === 2) ) setP_me_PaddleY(myPlayer.paddleY);
-          if (player_n_ref.current !== null &&(player_n_ref.current  === 4|| player_n_ref.current  === 3)) setP_2_PaddleY(opponent.paddleY);
+          if (player_n_ref.current !== null && (player_n_ref.current === 1 || player_n_ref.current === 2)) setP_me_PaddleY(myPlayer.paddleY);
+          if (player_n_ref.current !== null && (player_n_ref.current === 4 || player_n_ref.current === 3)) setP_2_PaddleY(opponent.paddleY);
           console.log('Game state updated:', { myPlayer, opponent });
         }
         break;
       case 'opponentDisconnected':
-        // setMessage(data.message);
         setGameOver(data.message);
         setIsLoading(false);
-        // setRoomId(null);
         setGameRunning(false);
-        // setopenTheGame(false);
         console.log('Opponent disconnected:', data.message);
         break;
       case 'gameStarted':
@@ -143,37 +132,28 @@ export default function Game2vs2() {
         console.log(`Waiting for opponent: ${data.message}`);
         break;
       case 'playerId':
-          playerIdRef.current = data.playerId; // ✅ instant availability
-          setPlayerId(data.playerId);          // ✅ triggers re-render for UI
-          console.log(`🎮 Your player ID in B: ${playerId}`);
-          console.log(`🎮 Your player ID in S: ${data.playerId}`);
+        playerIdRef.current = data.playerId;
+        setPlayerId(data.playerId);
+        console.log(`🎮 Your player ID in B: ${playerId}`);
+        console.log(`🎮 Your player ID in S: ${data.playerId}`);
         break;
       case 'gameState':
         const myId = playerIdRef.current;
-        if (!myId) return; // now this will work after first message
-        let xxIsFirst =false;
-        if (data.gameState?.players) 
-        {
+        if (!myId) return;
+        let xxIsFirst = false;
+        if (data.gameState?.players) {
           const myPlayer = data.gameState.players.find((p: any) => p.id === myId);
-          if(myPlayer && myPlayer.playerIndex=== 0 || myPlayer.playerIndex === 1) 
-          {
+          if (myPlayer && myPlayer.playerIndex === 0 || myPlayer.playerIndex === 1) {
             xxIsFirst = true;
           }
           
-          const opponent = xxIsFirst ? data.gameState.players.find((p: any) => p.playerIndex === 2 || p.playerIndex === 3): data.gameState.players.find((p: any) => p.playerIndex === 1 || p.playerIndex === 0);
-        //   const opponent = data.gameState.players.find((p: any) => p.id !== myId);
-        
-        
-        //   const myPlayer = data.gameState.players.find((p: any) => p.playerIndex === 0 || p.playerIndex === 1);
-        //   const opponent = data.gameState.players.find((p: any) => p.playerIndex === 2 || p.playerIndex === 3);
-      
-          if (myPlayer)
-          {
+          const opponent = xxIsFirst ? data.gameState.players.find((p: any) => p.playerIndex === 2 || p.playerIndex === 3) : data.gameState.players.find((p: any) => p.playerIndex === 1 || p.playerIndex === 0);
+
+          if (myPlayer) {
             setP_me_PaddleY(myPlayer.paddleY);
             setMyScore(myPlayer.score);
           } 
-          if (opponent) 
-          {
+          if (opponent) {
             setP_2_PaddleY(opponent.paddleY);
             setOpponentScore(opponent.score);
           }
@@ -193,16 +173,13 @@ export default function Game2vs2() {
     }
   }, [playerId]);
 
-  
-
-  // Send paddle movement to server (with throttling)
   const sendPaddleMove = useCallback((direction: 'up' | 'down') => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
 
     const now = Date.now();
     if (lastPaddleMove.current && 
         lastPaddleMove.current.direction === direction && 
-        now - lastPaddleMove.current.time < 16) { // ~60fps throttling
+        now - lastPaddleMove.current.time < 16) {
       return;
     }
 
@@ -214,27 +191,21 @@ export default function Game2vs2() {
     lastPaddleMove.current = { direction, time: now };
   }, []);
 
-  
-
-  // Handle continuous key presses
   useEffect(() => {
     const handleMovement = () => {
-    if (player_n_ref.current && player_n_ref.current % 2 ==0&& (keysRef.current.has('w') || keysRef.current.has('ArrowUp'))) {
+      if (player_n_ref.current && player_n_ref.current % 2 == 0 && (keysRef.current.has('w') || keysRef.current.has('ArrowUp'))) {
         sendPaddleMove('up');
       }
-      if (player_n_ref.current && player_n_ref.current % 2 !=0 &&(keysRef.current.has('s') || keysRef.current.has('ArrowDown'))) {
+      if (player_n_ref.current && player_n_ref.current % 2 != 0 && (keysRef.current.has('s') || keysRef.current.has('ArrowDown'))) {
         sendPaddleMove('down');
       }
     };
 
-    const intervalId = setInterval(handleMovement, 16); // ~60fps
-
+    const intervalId = setInterval(handleMovement, 16);
     return () => clearInterval(intervalId);
   }, [sendPaddleMove]);
 
-  // Keyboard event handlers
-  useEffect(() => 
-  {
+  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'w' || e.key === 's' || e.key === 'ArrowUp' || e.key === 'ArrowDown') {
         keysRef.current.add(e.key);
@@ -256,16 +227,13 @@ export default function Game2vs2() {
 
   useEffect(() => {
     connectToServer();
-    if( wsRef.current ) 
-    {
-        wsRef.current.onopen = () => 
-        {
-            wsRef.current?.send(JSON.stringify(
-            {
-                type: 'gameType', 
-                game:'2vs2'
-            }));
-        };
+    if (wsRef.current) {
+      wsRef.current.onopen = () => {
+        wsRef.current?.send(JSON.stringify({
+          type: 'gameType', 
+          game: '2vs2'
+        }));
+      };
     }
   }, []);
 
@@ -284,96 +252,180 @@ export default function Game2vs2() {
     }
   };
 
-
   return (
-    <div>
-
-    <h1> you are {connectionStatus} </h1>
-      {messagee && <h2>{messagee}</h2>}
-      {playerId && <h2>Player ID: {playerId}</h2>}
+    <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-4">
       
-
-
-      {isLoading && (
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-400"></div>
-      )}
-      {roomId && <h2>Room ID: {roomId}</h2>}
-      {connectionStatus === 'connected' && (
-        <button onClick={disconnectFromServer}>disconnected</button>
-      )}
-        {player_N && <h2>Player N: {player_N}</h2>}
-        {player_N && <h2> your move {player_N%2===0?"up":"down"} </h2>}
-
-            {/* Game Area with Paddle */}
-      {true && (
-        <div
-          className=" relative bg-black border border-white rotate-0 items-center justify-center  m-auto"
-          style={{ width: CANVAS_WIDTH, height: CANVAS_HEIGHT }}
+      {/* Connection Status Header (only when game is not open) */}
+      {!openTheGame && (
+        <div className="text-center space-y-4">
+          <div className="border-2 border-cyan-400 bg-gray-900 px-8 py-3 mb-4" style={{
+            boxShadow: '0 0 20px rgba(34, 211, 238, 0.5)'
+          }}>
+            <h1 className="text-3xl font-bold text-cyan-400 tracking-widest" style={{
+              textShadow: '0 0 10px rgba(34, 211, 238, 0.8)'
+            }}>
+              PING PONG 2VS2
+            </h1>
+          </div>
           
-        >
-          {/* Left Paddle (Your paddle) */}
-          <div
-            className="absolute bg-green-400"
-            style={{
-              left: '0px',
-              top: `${P_me_paddleY}px`,
-              width: `${PADDLE_WIDTH}px`,
-              height: `${PADDLE_HEIGHT}px`,
-            }}
-          />
-          {/* Right Paddle (Opponent paddle) */}
-          <div
-            className="absolute bg-white"
-            style={{
-              left: `${CANVAS_WIDTH - PADDLE_WIDTH - 0}px`,
-              top: `${P_2_paddleY}px`,
-              width: `${PADDLE_WIDTH}px`,
-              height: `${PADDLE_HEIGHT}px`,
-            }}
-          />
-
-           {/* Ball */}
-           {!gameOver &&
-          <div
-            className="absolute bg-red-500 rounded-full z-1"
-            style={{
-              left: `${(ballX - BALL_SIZE / 2)}px`,
-              top: `${(ballY - BALL_SIZE / 2)}px`,
-              width: `${BALL_SIZE}px`,
-              height: `${BALL_SIZE}px`,
-            }}
-          />
-          }
-
-         {/* Scores */}
-        <div className="absolute  w-full   flex justify-between pt-5 px-50  items-center text-xl font-bold text-white">
-          <div> {myScore}</div>
-          <div> {opponentScore}</div>
-        </div>
-
-        {/* Add this to your JSX, inside the game area div where you want to display the countdown */}
-        {/* {countdown !== null && (
-            <div className="absolute inset-0 flex items-center justify-center ">
-            <div className="text-9xl font-bold text-white/90 px-8 py-4 rounded-lg z-4">
-            {countdown}
+          <div className="text-cyan-400 text-xl" style={{
+            textShadow: '0 0 8px rgba(34, 211, 238, 0.6)'
+          }}>
+            Status: {connectionStatus}
+          </div>
+          
+          {messagee && <h2 className="text-gray-300 text-lg">{messagee}</h2>}
+          {playerId && <h2 className="text-gray-400">Player ID: {playerId}</h2>}
+          {roomId && <h2 className="text-gray-400">Room ID: {roomId}</h2>}
+          {player_N && <h2 className="text-gray-400">Player #{player_N}</h2>}
+          {player_N && <h2 className="text-yellow-400">Your move: {player_N % 2 === 0 ? "UP" : "DOWN"}</h2>}
+          
+          {isLoading && (
+            <div className="flex justify-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400" style={{
+                boxShadow: '0 0 15px rgba(34, 211, 238, 0.5)'
+              }}></div>
             </div>
-            </div>
-        )} */}
-        {gameOver && (
-          <h1 className='absolute font-bold text-6xl text-center z-4 inset-0 flex items-center justify-center'>{gameOver}</h1>
-        )}
-
-   {/* Center Line */}
-    <div
-      className="absolute h-full left-1/2 transform -translate-x-1/2 border-l-2 border-gray-400 border-dashed"
-    />
-        
+          )}
+          
+          {connectionStatus === 'connected' && (
+            <button 
+              onClick={disconnectFromServer}
+              className="px-6 py-2 bg-gray-700 hover:bg-gray-800 text-white font-bold rounded shadow-lg"
+            >
+              Disconnect
+            </button>
+          )}
         </div>
       )}
 
+      {/* Game Area */}
+      {openTheGame && (
+        <div>
+          {/* Header */}
+          <div className="mb-8">
+            <div className="border-2 border-cyan-400 bg-gray-900 px-8 py-3 mb-4" style={{
+              boxShadow: '0 0 20px rgba(34, 211, 238, 0.5)'
+            }}>
+              <h1 className="text-3xl text-center font-bold text-cyan-400 tracking-widest" style={{
+                textShadow: '0 0 10px rgba(34, 211, 238, 0.8)'
+              }}>PING PONG 2VS2</h1>
+            </div>
+            <div className="text-center space-y-2">
+              <p className="text-gray-400">
+                Room: {roomId} • Status: {connectionStatus} • Player #{player_N}
+              </p>
+              <p className="text-yellow-400 text-sm">
+                Your Control: {player_N % 2 === 0 ? "W/↑ (UP)" : "S/↓ (DOWN)"}
+              </p>
+            </div>
+          </div>
 
+          {/* Game Container */}
+          <div className="border-1 border-gray-600 bg-gray-900 p-6 rounded-lg" style={{
+            boxShadow: '0 0 30px rgba(34, 211, 238, 0.4)'
+          }}>
+            {/* Score and Controls */}
+            <div className="flex items-center justify-between mb-4">
+              {/* Team 1 Score */}
+              <div className="text-center">
+                <div className="text-4xl font-bold text-cyan-400" style={{
+                  textShadow: '0 0 15px rgba(34, 211, 238, 0.8)'
+                }}>{myScore}</div>
+                <div className="text-gray-400 text-sm">Team 1</div>
+              </div>
 
-      
+              {/* Control Buttons */}
+              <div className="flex gap-3">
+                <button
+                  className="px-6 py-2 bg-gray-700 hover:bg-gray-800 text-white font-bold rounded shadow-lg"
+                  onClick={disconnectFromServer}
+                >
+                  Disconnect
+                </button>
+              </div>
+
+              {/* Team 2 Score */}
+              <div className="text-center">
+                <div className="text-4xl font-bold text-cyan-400" style={{
+                  textShadow: '0 0 15px rgba(196, 181, 253, 0.8)'
+                }}>{opponentScore}</div>
+                <div className="text-gray-400 text-sm">Team 2</div>
+              </div>
+            </div>
+
+            {/* Game Area */}
+            <div
+              className="relative bg-gray-900 border-none rounded-lg"
+              style={{ 
+                width: CANVAS_WIDTH, 
+                height: CANVAS_HEIGHT,
+                boxShadow: '0 0 25px rgba(34, 211, 238, 0.6), inset 0 0 25px rgba(34, 211, 238, 0.1)'
+              }}
+              tabIndex={0}
+              onFocus={(e) => e.currentTarget.style.outline = 'none'}
+            >
+              {/* Left Paddle (Team 1) */}
+              <div
+                className="absolute bg-cyan-500 rounded-r-sm"
+                style={{
+                  left: '0px',
+                  top: `${P_me_paddleY}px`,
+                  width: `${PADDLE_WIDTH}px`,
+                  height: `${PADDLE_HEIGHT}px`,
+                  boxShadow: '0 0 20px rgba(34, 211, 238, 0.8)'
+                }}
+              />
+
+              {/* Right Paddle (Team 2) */}
+              <div
+                className="absolute bg-cyan-500 rounded-l-sm"
+                style={{
+                  left: `${CANVAS_WIDTH - PADDLE_WIDTH}px`,
+                  top: `${P_2_paddleY}px`,
+                  width: `${PADDLE_WIDTH}px`,
+                  height: `${PADDLE_HEIGHT}px`,
+                  boxShadow: '0 0 20px rgba(34, 211, 238, 0.8)'
+                }}
+              />
+
+              {/* Ball */}
+              {!gameOver && (
+                <div
+                  className="absolute bg-green-400 rounded-full"
+                  style={{
+                    left: `${ballX - BALL_SIZE / 2}px`,
+                    top: `${ballY - BALL_SIZE / 2}px`,
+                    width: `${BALL_SIZE}px`,
+                    height: `${BALL_SIZE}px`,
+                    boxShadow: '0 0 25px rgba(34, 197, 94, 0.9)'
+                  }}
+                />
+              )}
+
+              {/* Center Line */}
+              <div 
+                className="absolute h-full left-1/2 transform -translate-x-1/2 border-l-2 border-cyan-400 border-dashed opacity-50"
+                style={{
+                  filter: 'drop-shadow(0 0 8px rgba(34, 211, 238, 0.6))'
+                }}
+              ></div>
+
+              {/* Game Over */}
+              {gameOver && (
+                <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-gray-900 bg-opacity-90">
+                  <div className="text-center">
+                    <h1 className="text-4xl font-bold text-cyan-400 mb-4" style={{
+                      textShadow: '0 0 25px rgba(34, 211, 238, 1)'
+                    }}>{gameOver}</h1>
+                    <p className="text-gray-400">Game Over</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
