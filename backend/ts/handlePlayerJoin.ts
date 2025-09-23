@@ -1,7 +1,7 @@
 
 
 
-import { startGameLoop_3D } from '../test2';
+import { startGameLoop_3D } from '../server';
 import { 
   GameRoom, 
   GameState, 

@@ -1,4 +1,4 @@
-import { startGameLoop_3D, stopGameLoop_3D } from '../test2';
+import { startGameLoop_3D, stopGameLoop_3D } from '../server';
 import { stopGameLoop } from './gameLogic';
 import { 
   GameRoom, 
