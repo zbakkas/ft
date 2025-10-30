@@ -14,6 +14,8 @@ import {
   c_WIN,
   PADDLE_SPEED,
   waitingPlayers,
+  waitingPlayers2vs2,
+  waitingPlayers3d,
   COUNTDOWN_TIME
 } from './types';
 
@@ -27,6 +29,19 @@ export const handlePlayerDisconnect = (playerId: string) => {
     console.log(`Removed ${playerId} from waiting list. Waiting players: ${waitingPlayers.length}`);
     return;
   }
+  const waitingIndex3d = waitingPlayers3d.findIndex(p => p.playerId === playerId);
+  if (waitingIndex3d !== -1) {
+    waitingPlayers3d.splice(waitingIndex3d, 1);
+    console.log(`Removed ${playerId} from 3D waiting list. Waiting players: ${waitingPlayers3d.length}`);
+    return;
+  }
+  const waitingIndex2vs2 = waitingPlayers2vs2.findIndex(p => p.playerId === playerId);
+  if (waitingIndex2vs2 !== -1) {
+    waitingPlayers2vs2.splice(waitingIndex2vs2, 1);
+    console.log(`Removed ${playerId} from 2vs2 waiting list. Waiting players: ${waitingPlayers2vs2.length}`);
+    return;
+  }
+  
 
   // Remove from active game
   const room = findRoomByPlayerId(playerId);

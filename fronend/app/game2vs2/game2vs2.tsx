@@ -130,6 +130,7 @@ export default function Game2vs2() {
       case 'waitingForOpponent':
         setMessage(data.message);
         console.log(`Waiting for opponent: ${data.message}`);
+        setIsLoading(true);
         break;
       case 'playerId':
         playerIdRef.current = data.playerId;
@@ -288,7 +289,7 @@ export default function Game2vs2() {
             </div>
           )}
           
-          {connectionStatus === 'connected' && (
+          {connectionStatus === 'connecting' && (
             <button 
               onClick={disconnectFromServer}
               className="px-6 py-2 bg-gray-700 hover:bg-gray-800 text-white font-bold rounded shadow-lg"

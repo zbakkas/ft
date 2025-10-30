@@ -270,6 +270,9 @@ export const  handlePlayerJoin_2vs2 = (connection: any, playerId: string) => {
     // Match with waiting player
     const waitingPlayer = waitingPlayers2vs2.shift()!;
     createGameForFourPlayers(waitingPlayers2vs2[0], waitingPlayers2vs2[1],waitingPlayer,{ playerId, socket: connection.socket });
+    //remove the players from the waiting list
+    waitingPlayers2vs2.shift();
+    waitingPlayers2vs2.shift();
     
   } 
   else 

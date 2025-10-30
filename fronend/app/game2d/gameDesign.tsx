@@ -119,7 +119,7 @@ export default function GameDesign_m({
             <h1 className="text-3xl font-bold text-cyan-400 tracking-widest" style={{
               textShadow: '0 0 10px rgba(34, 211, 238, 0.8)'
             }}>
-              PING PONG ONLINE
+              PING PONG 1VS1
             </h1>
           </div>
           
@@ -184,18 +184,18 @@ export default function GameDesign_m({
               </div>
 
               {/* Control Buttons */}
-              <div className="flex gap-3">
-                <button
+              {/* <div className="flex gap-3"> */}
+                {/* <button
                   className="px-6 py-2 bg-gray-700 hover:bg-gray-800 text-white font-bold rounded shadow-lg"
                   onClick={disconnectFromServer}
                 >
                   Disconnect
-                </button>
+                </button> */}
                 {/* Debug info */}
-                <div className="text-xs text-gray-500">
+                {/* <div className="text-xs text-gray-500">
                   Game: {gameRunning ? 'Running' : 'Not Running'} | Countdown: {countdown}
                 </div>
-              </div>
+              </div> */}
 
               {/* Player 2 Score (Opponent) */}
               <div className="text-center">
