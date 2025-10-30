@@ -1,11 +1,9 @@
-import GameOffline from "./gameOffline";
-
-
+import AI from "./Ai";
 
 export default function Home() {
   return (
     <main>
-      <GameOffline/>
+      <AI/>
 
     </main>
   )
