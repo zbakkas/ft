@@ -64,6 +64,7 @@ export interface GameRoom {
   gameState: GameState;
   players: Map<string, Player>;
   gameLoop?: NodeJS.Timeout;
+  startTime?: number;
 }
 
 // Global state - you can import and use these anywhere

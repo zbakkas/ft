@@ -15,6 +15,7 @@ import {
   waitingPlayers,
   COUNTDOWN_TIME
 } from './types';
+import { saveGameResult } from './database';
 
 
 
@@ -79,6 +80,22 @@ import {
       gameState.gameRunning = false;
       gameState.gameOver = true;
       stopGameLoop(room);
+      
+      // Determine winner
+      const winnerId = player1.score >= c_WIN ? player1.id : player2.id;
+      
+      // Save game result to database
+      saveGameResult({
+        gameId: gameState.gameId,
+        player1Id: player1.id,
+        player1Score: player1.score,
+        player2Id: player2.id,
+        player2Score: player2.score,
+        winnerId: winnerId,
+        gameMode: '1v1',
+        duration: Date.now() - (room.startTime || Date.now())
+      });
+      
       room.players.forEach(player => {
         player.socket.send(JSON.stringify({
           type: 'gameOver',
@@ -191,6 +208,24 @@ export const updateGameState_2vs2 = (room: GameRoom) => {
       gameState.gameRunning = false;
       gameState.gameOver = true;
       stopGameLoop(room);
+      
+      // Determine winner for 2v2 (team 1: player1 & player1_1, team 2: player2 & player2_1)
+      const winnerId = player1.score >= c_WIN ? 'team1' : 'team2';
+      const team1Players = `${player1.id},${player1_1.id}`;
+      const team2Players = `${player2.id},${player2_1.id}`;
+      
+      // Save game result to database
+      saveGameResult({
+        gameId: gameState.gameId,
+        player1Id: team1Players,
+        player1Score: player1.score,
+        player2Id: team2Players,
+        player2Score: player2.score,
+        winnerId: winnerId,
+        gameMode: '2v2',
+        duration: Date.now() - (room.startTime || Date.now())
+      });
+      
       room.players.forEach(player => {
         player.socket.send(JSON.stringify({
           type: 'gameOver',

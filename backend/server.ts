@@ -19,6 +19,7 @@ import {
   COUNTDOWN_TIME,
   BALL_PHYSICS
 } from './ts/types';
+import { getAllGameResults, getPlayerResults } from './ts/database';
 
 
 const fastify = Fastify({ logger: true });
@@ -35,10 +36,31 @@ fastify.get('/', async (req, reply) => {
   return 'WebSocket server is running';
 });
 
+// API endpoint to get all game results
+fastify.get('/api/game-results', async (req, reply) => {
+  try {
+    const results = await getAllGameResults();
+    return { success: true, data: results };
+  } catch (error) {
+    return { success: false, error: 'Failed to fetch game results' };
+  }
+});
+
+// API endpoint to get game results by player
+fastify.get('/api/game-results/:playerId', async (req, reply) => {
+  try {
+    const { playerId } = req.params as { playerId: string };
+    const results = await getPlayerResults(playerId);
+    return { success: true, data: results };
+  } catch (error) {
+    return { success: false, error: 'Failed to fetch player results' };
+  }
+});
+
 // Start server
 const start = async () => {
   try {
-    await fastify.listen({ port: 3001, host: '0.0.0.0' });
+    await fastify.listen({ port: 3006, host: '0.0.0.0' });
     console.log('🎮 Pong server running on http://localhost:3001');
     console.log('🚀 WebSocket endpoint: ws://localhost:3001/ws');
   } catch (err) {
@@ -54,6 +76,7 @@ start();
 import { handlePlayerJoin, handlePlayerJoin_2vs2, handlePlayerJoin_3d } from './ts/handlePlayerJoin';
 import { handlePlayerDisconnect } from './ts/handlePlayerDisconnect';
 import { handlePaddleMove, handlePaddleMove_2vs2 } from './ts/handlePaddleMove';
+import { saveGameResult } from './ts/database';
 
 ////////////////////////////////////////////////////////////////////////////
 
@@ -61,7 +84,11 @@ import { handlePaddleMove, handlePaddleMove_2vs2 } from './ts/handlePaddleMove';
 // URL-based game mode selection approach
 fastify.register(async function (fastify) {
   // Default WebSocket endpoint (could default to 1v1)
+  type QueryGM = {
+    userId: string;
+  }
   fastify.get('/ws', { websocket: true }, (connection, req) => {
+    // const {userId: playerId} = req.query as QueryGM;
     const playerId = Math.random().toString(36).substring(7);
     console.log(`Player ${playerId} connected to default endpoint (1v1)`);
     
@@ -92,6 +119,7 @@ fastify.register(async function (fastify) {
 
   // 2v2 specific endpoint
   fastify.get('/ws/2v2', { websocket: true }, (connection, req) => {
+    // const {userId: playerId} = req.query as QueryGM;
     const playerId = Math.random().toString(36).substring(7);
     console.log(`Player ${playerId} connected to 2v2 mode`);
     
@@ -317,6 +345,22 @@ const updateBallPhysics = (room: GameRoom) => {
     gameState.gameRunning = false;
     gameState.gameOver = true;
     stopGameLoop_3D(room);
+    
+    // Determine winner
+    const winnerId = player1.score >= c_WIN ? player1.id : player2.id;
+    
+    // Save game result to database
+    saveGameResult({
+      gameId: gameState.gameId,
+      player1Id: player1.id,
+      player1Score: player1.score,
+      player2Id: player2.id,
+      player2Score: player2.score,
+      winnerId: winnerId,
+      gameMode: '3D',
+      duration: Date.now() - (room.startTime || Date.now())
+    });
+    
     room.players.forEach(player => {
       player.socket.send(JSON.stringify({
         type: 'gameOver',

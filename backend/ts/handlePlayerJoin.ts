@@ -177,6 +177,7 @@ const createGameForTwoPlayers = (player1: { playerId: string; socket: any }, pla
     console.log("🔅🔅vStarting game for players: ", room.gameState.players.size, "game over", room.gameState.gameOver);
     if( room.gameState.players.size<=1 ) return;
     room.gameState.gameRunning = true;
+    room.startTime = Date.now();
     if( room.gameState.game2D ) {
     startGameLoop(room);
     }
@@ -422,6 +423,7 @@ const createGameForFourPlayers = (player1: { playerId: string; socket: any }, pl
     console.log("🔅🔅vStarting game for players: ", room.gameState.players.size, "game over", room.gameState.gameOver);
     if( room.gameState.players.size<=1 ) return;
     room.gameState.gameRunning = true;
+    room.startTime = Date.now();
     if( room.gameState.game2D ) {
     startGameLoop(room);
     }

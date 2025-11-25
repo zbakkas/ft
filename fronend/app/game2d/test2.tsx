@@ -56,7 +56,7 @@ export default function MultiplayerPongGame_2D() {
       return;
     }
 
-    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001/ws';
+    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3006/ws';//'ws://localhost:3000/ws/game/ws
     console.log('Attempting to connect to:', wsUrl);
 
     setConnectionStatus('connecting');
