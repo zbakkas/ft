@@ -25,6 +25,7 @@
         "@fastify/cors": "^8.4.0",
         "@fastify/websocket": "^8.3.1",
         "fastify": "^4.29.1",
+        "socket.io-client": "^4.8.1",
         "sql.js": "^1.10.3"
     },
     "devDependencies": {
