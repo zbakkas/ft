@@ -52,18 +52,19 @@ fastify.ready().then(() => {
     socket.emit('room-created', { rooms: Array.from(rooms.values()) });
     
     const newPlayer: player = {
-      id: socket.id,
-      name: "",
+      id: playerId,
+      name: "Unknown",
       socket: socket,
       roomId: null
     };
-    players.set(socket.id, newPlayer);
+    players.set(playerId, newPlayer);
 
     socket.on('join-lobby', (data) => {
       const { playerName } = data;
-      const player = players.get(socket.id);
+      const player = players.get(playerId);
       if (player) {
         player.name = playerName;
+        console.log(`========Player ${player.name} joined the lobby`);
       }
     });
 
@@ -91,7 +92,7 @@ fastify.ready().then(() => {
         password: Password_room,
         players: [],
         status: 'waiting',
-        players_Socket: new Map<string, any>(), // socket.id -> socket
+        players_Socket: new Map<string, any>(), // playerId -> socket
         Allcards: buildAllCards(), // Initialize with random cards
         // cards: [] as CardModel[],
         playersWithCards: [] as playerWithCards[],
@@ -125,7 +126,7 @@ fastify.ready().then(() => {
       };
       
       // Update player's roomId
-      const player = players.get(socket.id);
+      const player = players.get(playerId);
       if (player) {
         player.roomId = newRoom.roomId;
         player.name = playerName;
@@ -140,7 +141,7 @@ fastify.ready().then(() => {
 
       newRoom.avatars.push(avatar);
       // Fix: Use socket.id as key, socket as value
-      newRoom.players_Socket.set(socket.id, socket);
+      newRoom.players_Socket.set(playerId, socket);
       
       rooms.set(newRoom.roomId, newRoom);
       
@@ -152,20 +153,26 @@ fastify.ready().then(() => {
     });
 
     socket.on('join-room', (data: any) => {
-      const { room_id ,avatar} = data;
+      const { room_id ,avatar ,player_ID,player_name} = data;
       const room = rooms.get(room_id);
       console.log("join-room---->",avatar);
       
-      if (room) {
+      if (room) 
+      {
         if (room.players.length < room.max_players) {
           // Update player's roomId
-          const player = players.get(socket.id);
+          const player = players.get(player_ID);
           if (player) {
             player.roomId = room_id;
-            room.players.push(player.name);
+            room.players.push(player_name);
             room.avatars.push(avatar);
+            //change player name
+            player.name = player_name;
+
+
+
             // Fix: Use socket.id as key, socket as value
-            room.players_Socket.set(socket.id, socket);
+            room.players_Socket.set(player_ID, socket);
           }
           
           // Notify all players in the room about the new player
@@ -176,7 +183,7 @@ fastify.ready().then(() => {
             playerSocket.emit('joined-room', { room: room, playerName: player?.name });
           });
           
-          console.log(`Player ${player?.name} joined room ${room_id}`);
+          console.log(` ==>Player ${player?.name} joined room ${room_id}`);
         } else {
           socket.emit('error', { message: 'Room is full' });
           console.log(`❌❌❌Player failed to join room ${room_id}: Room is full`);
@@ -189,7 +196,7 @@ fastify.ready().then(() => {
 
     // Handle leaving room
     socket.on('leave-room', (data: any) => {
-      cleanupPlayer(socket.id, socket);
+      cleanupPlayer(playerId, socket);
     });
     // Handle kicking player (only room owner can kick)
     socket.on('kick-player', (data: any) => {
@@ -198,9 +205,9 @@ fastify.ready().then(() => {
           const room = rooms.get(room_id);
           if(room)
           {
-            if(room.ownirName === players.get(socket.id)?.name)
+            if(room.ownirName === players.get(playerId)?.name)
             {
-              console.log(`Kicking player ${player_name} from room ${room_id} by ${players.get(socket.id)?.name}`);
+              console.log(`Kicking player ${player_name} from room ${room_id} by ${players.get(playerId)?.name}`);
               const playerToKick = Array.from(players.values()).find(p => p.name === player_name && p.roomId === room_id);
               if(playerToKick)
               {
@@ -219,7 +226,7 @@ fastify.ready().then(() => {
             }
             else
             {
-              console.log(`❌❌❌Player ${players.get(socket.id)?.name} attempted to kick ${player_name} but is not the room owner.`);
+              console.log(`❌❌❌Player ${players.get(playerId)?.name} attempted to kick ${player_name} but is not the room owner.`);
             }
           }
           else
@@ -234,7 +241,7 @@ fastify.ready().then(() => {
       const { room_id } = data;
       const room = rooms.get(room_id);
       if (room) {
-        if (room.ownirName === players.get(socket.id)?.name) {
+        if (room.ownirName === players.get(playerId)?.name) {
           if (room.players.length >= 2) 
           {
             room.status = 'playing';
@@ -280,7 +287,7 @@ fastify.ready().then(() => {
           }
         } else {
           socket.emit('error', { message: 'Only the room owner can start the game' });
-          console.log(`❌❌❌Player ${players.get(socket.id)?.name} attempted to start game in room ${room_id} but is not the owner`);
+          console.log(`❌❌❌Player ${players.get(playerId)?.name} attempted to start game in room ${room_id} but is not the owner`);
         }
       } else {
         socket.emit('error', { message: 'Room not found' });
@@ -290,7 +297,7 @@ fastify.ready().then(() => {
 
     socket.on('card-click', (data: any) => {
       const { col, row ,player_name} = data;
-      const player = players.get(socket.id);
+      const player = players.get(playerId);
       if (player && player.roomId ) {
         if(player.name !== player_name)
         {
@@ -327,7 +334,7 @@ fastify.ready().then(() => {
               });
               // send to all players in the room
               room.players_Socket.forEach((playerSocket, socketId) => {
-                if(socketId !== socket.id)
+                if(socketId !== playerId)
                 {
                   playerSocket.emit('all-first-hrade-updated', {
                     all_first_hrade_cards: room.playersWithCards.every(pwc => pwc.first_hrade_cards <=0),
@@ -400,13 +407,13 @@ fastify.ready().then(() => {
         }
 
       } else {
-        console.log(`❌❌❌Player with socket ID ${socket.id} attempted to click card but is not in a room`);
+        console.log(`❌❌❌Player with socket ID ${playerId} attempted to click card but is not in a room`);
       }
 
     });
     socket.on('click-card-in-table', (data: any) => {
       const { room_id } = data;
-      const player = players.get(socket.id);
+      const player = players.get(playerId);
       if (player && player.roomId === room_id) {
         const room = rooms.get(room_id);
         console.log(`🙃all Player ${room?.playersWithCards.every(pwc => pwc.first_hrade_cards <=0)}`);
@@ -420,13 +427,13 @@ fastify.ready().then(() => {
           playerSocket.emit('card-updated', {room:createSafeRoomData(room),  Allplayers: room?.playersWithCards  ,name_of_turn: room?.playersWithCards .find(pwc => pwc.isYourTurn)?.name , last_turn: room?.last_tourn  });
         });
       } else {
-        console.log(`❌❌❌Player with socket ID ${socket.id} attempted to click card in table but is not in the correct room`);
+        console.log(`❌❌❌Player with socket ID ${playerId} attempted to click card in table but is not in the correct room`);
       }
     });
 
     socket.on('click-random-card-in-table', (data: any) => {
       const { room_id } = data;
-      const player = players.get(socket.id);
+      const player = players.get(playerId);
       if (player && player.roomId === room_id) {
         const room = rooms.get(room_id);
         const playerWithCards = room?.playersWithCards.find(pwc => pwc.name === player.name);
@@ -442,12 +449,12 @@ fastify.ready().then(() => {
           });
         }
       } else {
-        console.log(`❌❌Player with socket ID ${socket.id} attempted to click card in table but is not in the correct room`);
+        console.log(`❌❌Player with socket ID ${playerId} attempted to click card in table but is not in the correct room`);
       }
     });
     socket.on('remove-random-card-in-table', (data: any) => {
       const { room_id } = data;
-      const player = players.get(socket.id);
+      const player = players.get(playerId);
       if (player && player.roomId === room_id) {
         const room = rooms.get(room_id);
         const playerWithCards = room?.playersWithCards.find(pwc => pwc.name === player.name);
@@ -465,14 +472,14 @@ fastify.ready().then(() => {
           });
         }
       } else {
-        console.log(`❌❌❌Player with socket ID ${socket.id} attempted to remove random card in table but is not in the correct room`);
+        console.log(`❌❌❌Player with socket ID ${playerId} attempted to remove random card in table but is not in the correct room`);
       }
     });
 
     // Handle disconnection
     socket.on('disconnect', () => {
-      console.log(`👋 Player disconnected: ${socket.id}`);
-      cleanupPlayer(socket.id, socket);
+      console.log(`👋 Player disconnected: ${playerId}`);
+      cleanupPlayer(playerId, socket);
     });
   });
 });
@@ -491,7 +498,7 @@ function cleanupPlayer(playerId: string, socket: any) {
       // Remove player's avatar from room
       room.avatars.splice(playerIndex, 1);
       // Remove socket from room's socket map
-      room.players_Socket.delete(socket.id);
+      room.players_Socket.delete(playerId);
 
       room.playersWithCards = room.playersWithCards.filter(pwc => pwc.name !== player.name);
            room.players_Socket.forEach((playerSocket, socketId) => {
@@ -517,14 +524,14 @@ function cleanupPlayer(playerId: string, socket: any) {
 
 
       // If room is empty, delete it
-      if (room.players.length <= 1) 
+      if (room.players.length <= 0) 
       {
-        if(room.players.length == 1)
-        {
-          room.players_Socket.forEach((playerSocket) => {
-            playerSocket.emit('game_over');
-          });
-        }
+        // if(room.players.length == 1)
+        // {
+        //   room.players_Socket.forEach((playerSocket) => {
+        //     playerSocket.emit('game_over');
+        //   });
+        // }
         rooms.delete(player.roomId!);
         // deleteRoom(player.roomId!);
       } else 
