@@ -22,12 +22,23 @@ import { broadcastGameState, broadcastGameState_2vs, updateGameState, updateGame
 export const  handlePlayerJoin = (connection: any, playerId: string) => {
   console.log(`Player ${playerId} looking for match...`);
   
+//  if (waitingPlayers.some(player => player.playerId === playerId)) {
+//     console.log(`Player ${playerId} is already in the waiting list.`);
 
+//     connection.socket.send(JSON.stringify({
+//     type: '2tap_opened',
+//     // message: 'playerId is ' + playerId,
+//     // playerId: playerId
+//     }));
+//     return;
+//   }
   connection.socket.send(JSON.stringify({
     type: 'playerId',
     message: 'playerId is ' + playerId,
     playerId: playerId
   }));
+
+ 
 
   // Check if there's a waiting player
   if (waitingPlayers.length > 0) 
@@ -35,6 +46,7 @@ export const  handlePlayerJoin = (connection: any, playerId: string) => {
     // Match with waiting player
     const waitingPlayer = waitingPlayers.shift()!;
     createGameForTwoPlayers(waitingPlayer, { playerId, socket: connection.socket });
+    // console.log(" ❗️matching players... waitingPlayers.length: ", waitingPlayers.length);
     
   } 
   else 

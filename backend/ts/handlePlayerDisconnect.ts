@@ -69,6 +69,7 @@ export const handlePlayerDisconnect = (playerId: string) => {
       message: 'Your opponent disconnected. you are the winner!',
 
      }));
+     
     
     // Add remaining player back to waiting list
     // waitingPlayers.push({ playerId: player.id, socket: player.socket });

@@ -549,9 +549,9 @@ export function deleteRoom(roomId: string) {
 const start = async () => {
   mmm();
   try {
-    await fastify.listen({ port: 3001, host: '0.0.0.0' });
-    console.log('🎮 Pong server running on http://localhost:3001');
-    console.log('🚀 WebSocket endpoint: ws://localhost:3001');
+    await fastify.listen({ port: 3007, host: '0.0.0.0' });
+    console.log('🎮 Pong server running on http://localhost:3007');
+    console.log('🚀 WebSocket endpoint: ws://localhost:3007');
     console.log('🌐 Accepting connections from: http://localhost:3000');
   } catch (err) {
     fastify.log.error(err);
