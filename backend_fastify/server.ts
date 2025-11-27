@@ -37,8 +37,18 @@ fastify.get('/', async (request, reply) => {
 
 // Socket.IO connection handling
 fastify.ready().then(() => {
+   type QueryGM = {
+    userId: string;
+  }
   fastify.io.on('connection', (socket) => {
-    console.log(`🎮 Player connected: ${socket.id}`);
+    const {userId: playerId} = socket.handshake.query as QueryGM;
+
+    console.log(`🎮 Player connected: ${playerId}`);
+    //send playerId to client
+    socket.emit('player-id', { playerID: playerId });
+
+
+
     socket.emit('room-created', { rooms: Array.from(rooms.values()) });
     
     const newPlayer: player = {
