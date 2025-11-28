@@ -2,6 +2,7 @@ import Fastify from 'fastify';
 import fastifySocketIo from 'fastify-socket.io';
 import { GameSettings, CardModel ,playerWithCards, rooms,RoundResult} from './types';
 import { TurnManager, buildAllCards, checkAllPlayersLastTurn, checkLastTurn, clearRoomTimer, createRandomCardsModel, createSafeRoomData, getARandomCard, hasRemovals, markCompleteLines, removeMarkedCards, remove_fun, resetGame, reset_last_turn, score, setAllCardsVisible, startRoomTimer } from './gameLogic';
+import { getPlayerStats, getPlayerGameHistory, getFrequentOpponents, getLeaderboard } from './database';
 import { get } from 'http';
 import { send } from 'process';
 const fastify = Fastify({ logger: true });
@@ -23,7 +24,7 @@ interface player {
   roomId: string | null;
 }
 
-const players = new Map<string, player>();
+export const players = new Map<string, player>();
 
  
 
@@ -33,6 +34,65 @@ fastify.get('/', async (request, reply) => {
     hello: 'world',
     message: 'Pong game server running!',
   };
+});
+
+// API Routes for Dashboard
+
+// Get player stats
+fastify.get('/api/player/:playerId/stats', async (request, reply) => {
+  const { playerId } = request.params as { playerId: string };
+  
+  try {
+    const stats = getPlayerStats(playerId);
+    if (!stats) {
+      return reply.status(404).send({ error: 'Player not found' });
+    }
+    return stats;
+  } catch (error) {
+    console.error('Error fetching player stats:', error);
+    return reply.status(500).send({ error: 'Internal server error' });
+  }
+});
+
+// Get player game history
+fastify.get('/api/player/:playerId/history', async (request, reply) => {
+  const { playerId } = request.params as { playerId: string };
+  const { limit } = request.query as { limit?: string };
+  
+  try {
+    const history = getPlayerGameHistory(playerId, limit ? parseInt(limit) : 20);
+    return history;
+  } catch (error) {
+    console.error('Error fetching player history:', error);
+    return reply.status(500).send({ error: 'Internal server error' });
+  }
+});
+
+// Get player's frequent opponents
+fastify.get('/api/player/:playerId/opponents', async (request, reply) => {
+  const { playerId } = request.params as { playerId: string };
+  const { limit } = request.query as { limit?: string };
+  
+  try {
+    const opponents = getFrequentOpponents(playerId, limit ? parseInt(limit) : 5);
+    return opponents;
+  } catch (error) {
+    console.error('Error fetching opponents:', error);
+    return reply.status(500).send({ error: 'Internal server error' });
+  }
+});
+
+// Get leaderboard
+fastify.get('/api/leaderboard', async (request, reply) => {
+  const { limit } = request.query as { limit?: string };
+  
+  try {
+    const leaderboard = getLeaderboard(limit ? parseInt(limit) : 10);
+    return leaderboard;
+  } catch (error) {
+    console.error('Error fetching leaderboard:', error);
+    return reply.status(500).send({ error: 'Internal server error' });
+  }
 });
 
 // Socket.IO connection handling
@@ -49,7 +109,7 @@ fastify.ready().then(() => {
 
 
 
-    socket.emit('room-created', { rooms: Array.from(rooms.values()) });
+    socket.emit('room-created', { rooms: Array.from(rooms.values()).map(r => createSafeRoomData(r)) });
     
     const newPlayer: player = {
       id: playerId,
@@ -145,8 +205,8 @@ fastify.ready().then(() => {
       
       rooms.set(newRoom.roomId, newRoom);
       
-      socket.emit('joined-room', { room: newRoom, playerName: playerName });
-      fastify.io.emit('room-created', { rooms: Array.from(rooms.values()) });
+      socket.emit('joined-room', { room: createSafeRoomData(newRoom), playerName: playerName });
+      fastify.io.emit('room-created', { rooms: Array.from(rooms.values()).map(r => createSafeRoomData(r)) });
       
       console.log(rooms);
       console.log(players);
@@ -176,11 +236,11 @@ fastify.ready().then(() => {
           }
           
           // Notify all players in the room about the new player
-          fastify.io.emit('room-created', { rooms: Array.from(rooms.values()) });
+          fastify.io.emit('room-created', { rooms: Array.from(rooms.values()).map(r => createSafeRoomData(r)) });
           
           // Send to all sockets in the room that the player has joined
           room.players_Socket.forEach((playerSocket, socketId) => {
-            playerSocket.emit('joined-room', { room: room, playerName: player?.name });
+            playerSocket.emit('joined-room', { room: createSafeRoomData(room), playerName: player?.name });
           });
           
           console.log(` ==>Player ${player?.name} joined room ${room_id}`);
@@ -242,11 +302,19 @@ fastify.ready().then(() => {
       const room = rooms.get(room_id);
       if (room) {
         if (room.ownirName === players.get(playerId)?.name) {
+          // Check if game is already started to prevent duplicate players
+          if (room.status === 'playing') {
+            console.log(`❌❌❌Game already started in room ${room_id}`);
+            return;
+          }
           if (room.players.length >= 2) 
           {
             room.status = 'playing';
             room.turnTimer = null;
            
+            // Clear existing playersWithCards to prevent duplicates
+            room.playersWithCards = [];
+            
             room.players_Socket.forEach((playerSocket, socketId) => 
             {
               console.log("Dealing cards to",players.get(socketId)?.name);
@@ -262,7 +330,6 @@ fastify.ready().then(() => {
                 ,last_turn:false,
                 total_score:0,
               });
-              playerSocket.emit('game-started', { room: room ,Allplayers:room.playersWithCards, first_hrade_cards:room.gameSettings.firstHeadCards});
               // console.log("Dealt cards to",players.get(socketId)?.name,room.cards[room.cards.length -1]);
 
 
@@ -270,15 +337,15 @@ fastify.ready().then(() => {
             });
             // startRoomTimer(room);
 
-            // Notify all players in the room that the game has started
+            // Notify all players in the room that the game has started (only once)
             room.players_Socket.forEach((playerSocket, socketId) => 
             {
-              playerSocket.emit('game-started', { room: room ,Allplayers:room.playersWithCards, first_hrade_cards:room.gameSettings.firstHeadCards});
+              playerSocket.emit('game-started', { room: createSafeRoomData(room) ,Allplayers:room.playersWithCards, first_hrade_cards:room.gameSettings.firstHeadCards});
               // console.log("Dealt cards to",players.get(socketId)?.name,room.cards[room.cards.length -1]);
             });
 
 
-            fastify.io.emit('room-created', { rooms: Array.from(rooms.values()) });
+            fastify.io.emit('room-created', { rooms: Array.from(rooms.values()).map(r => createSafeRoomData(r)) });
             console.log(`Game started in room ${room_id}`);
 
           } else {
@@ -539,12 +606,12 @@ function cleanupPlayer(playerId: string, socket: any) {
         // console.log("fffffffff");
         // Notify remaining players in the room
         room.players_Socket.forEach((playerSocket, socketId) => {
-          playerSocket.emit('joined-room', { room: room, playerName: player.name });
+          playerSocket.emit('joined-room', { room: createSafeRoomData(room), playerName: player.name });
         });
       }
       // console.log("rrrrrrrrf");
       player.roomId = null;
-      fastify.io.emit('room-created', { rooms: Array.from(rooms.values()) });
+      fastify.io.emit('room-created', { rooms: Array.from(rooms.values()).map(r => createSafeRoomData(r)) });
       // console.log("444444444444");
       console.log(`Player ${player.name} left room ${player.roomId}`);
     } else {
@@ -558,7 +625,7 @@ function cleanupPlayer(playerId: string, socket: any) {
 export function deleteRoom(roomId: string) {
   if (rooms.has(roomId)) {
     rooms.delete(roomId);
-    fastify.io.emit('room-created', { rooms: Array.from(rooms.values()) });
+    fastify.io.emit('room-created', { rooms: Array.from(rooms.values()).map(r => createSafeRoomData(r)) });
   }
 }
 

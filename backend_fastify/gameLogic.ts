@@ -1,5 +1,6 @@
-import { deleteRoom } from './server';
+import { deleteRoom, players } from './server';
 import { GameSettings, CardModel, Card, playerWithCards, TURN_TIMEOUT, RoundResult, rooms } from './types';
+import { saveMatchResult, MatchResult, PlayerResult } from './database';
 
 // Build the initial list of cards according to your distribution
 export function buildAllCards(): number[] {
@@ -346,6 +347,38 @@ export function reset_last_turn (room:any, playerWithCards:playerWithCards): voi
         console.log("🏆🏆🏆 Game over after last turn 🏆🏆🏆");
         console.log("Final Results:", room.round_results);
         
+        // Save match results to database
+        try {
+          const matchResult: MatchResult = {
+            roomId: room.roomId,
+            roomName: room.room_name,
+            gameMode: room.gameSettings.gameMode,
+            maxScore: room.gameSettings.maxScore,
+            totalTurns: room.number_turn,
+            durationSeconds: 0, // Could track actual game duration if needed
+            players: room.round_results.map((result: RoundResult, index: number) => {
+              // Find player ID from players map
+              const playerEntry = [...players.entries()].find(([id, p]) => p.name === result.name && p.roomId === room.roomId);
+              const playerId = playerEntry ? playerEntry[0] : result.name; // Fallback to name if not found
+              
+              return {
+                playerId: playerId,
+                playerName: result.name,
+                avatar: result.avatar,
+                finalScore: result.totalScore,
+                position: index + 1, // Already sorted by score
+                roundScores: result.roundScore,
+                isWinner: index === 0, // First player (lowest score) is winner
+              } as PlayerResult;
+            }),
+          };
+          
+          const matchId = saveMatchResult(matchResult);
+          console.log(`💾 Match saved to database with ID: ${matchId}`);
+        } catch (error) {
+          console.error('❌ Failed to save match to database:', error);
+        }
+        
         room.players_Socket.forEach((playerSocket, socketId) => {
           playerSocket.emit('final_turn_Results', room.round_results);
         });
@@ -551,12 +584,19 @@ function handleRoomTimeout(room: any) {
     return;
   }
   
-  // Find current player's socket - FIXED: Use players map correctly
-  const currentSocket = [...room.players_Socket.entries()].find(([socketId, socket]) => socketId === currentPlayer.socketId);
+  // Find current player's socket - Find player by name from players Map, then get their socket
+  const playerEntry = [...players.entries()].find(([id, p]) => p.name === currentPlayer.name && p.roomId === room.roomId);
+  if (!playerEntry) {
+    console.log(`❌ No player entry found for ${currentPlayer.name}`);
+    return;
+  }
+  
+  const [playerId, playerData] = playerEntry;
+  const currentSocket = room.players_Socket.get(playerId);
   
   // Ensure currentSocket is valid before accessing it
   if (!currentSocket) {
-    console.log(`❌ No socket found for player ${currentPlayer.name} with socketId ${currentPlayer.socketId}`);
+    console.log(`❌ No socket found for player ${currentPlayer.name} with playerId ${playerId}`);
     return; // Skip further execution if socket is not found
   }
   
@@ -570,13 +610,13 @@ function handleRoomTimeout(room: any) {
       currentPlayer.first_hrade_cards -= 1;
       
       // Notify the specific player about their first grade card update
-      currentSocket[1].emit('first-hrade-updated', { 
+      currentSocket.emit('first-hrade-updated', { 
         first_hrade_cards: currentPlayer.first_hrade_cards,
       });
       
       // Notify all other players about first grade cards status
       room.players_Socket.forEach((playerSocket: any, socketId: string) => {
-        if (socketId !== currentSocket[0]) {
+        if (socketId !== playerId) {
           playerSocket.emit('all-first-hrade-updated', {
             all_first_hrade_cards: room.playersWithCards.every((pwc: playerWithCards) => pwc.first_hrade_cards <= 0),
           });
