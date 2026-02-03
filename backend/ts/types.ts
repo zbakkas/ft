@@ -72,3 +72,14 @@ export const gameRooms = new Map<string, GameRoom>();
 export const waitingPlayers: Array<{ playerId: string; socket: any }> = [];
 export const waitingPlayers2vs2: Array<{ playerId: string; socket: any }> = [];
 export const waitingPlayers3d: Array<{ playerId: string; socket: any }> = [];
+// List to hold invited players for private games : two players in the smae room
+export const invitedPlayers: Array<{ playerId: string; socket: any; roomId: string; player_two_ID: string }> = [];
+// List to hold invited players for tournament games
+export const invitedPlayersTournament: Array<{ 
+  player_one_ID: string; 
+  player_two_ID: string;
+  roomId: string;
+  tournamentId: string;
+  player_one_socket?: any;
+  player_two_socket?: any;
+}> = [];

@@ -14,12 +14,15 @@ import {
   BALL_SPEED,
   COUNTDOWN_TIME,
   BALL_PHYSICS,
-  waitingPlayers3d
+  waitingPlayers3d,
+  invitedPlayers,
+  invitedPlayersTournament
 } from './types';
 import { broadcastGameState, broadcastGameState_2vs, updateGameState, updateGameState_2vs2 } from './updateGameState';
 
 // Matchmaking system - automatically pair players
-export const  handlePlayerJoin = (connection: any, playerId: string) => {
+//handlePlayerJoin(connection, playerId, true, roomId, playerinvitID, tournamentId);
+export const  handlePlayerJoin = (connection: any, playerId: string,privatee?:boolean, room_ID?:string,playerinvitID?:string, tournamentId?:string ) => {
   console.log(`Player ${playerId} looking for match...`);
   
 //  if (waitingPlayers.some(player => player.playerId === playerId)) {
@@ -38,7 +41,115 @@ export const  handlePlayerJoin = (connection: any, playerId: string) => {
     playerId: playerId
   }));
 
- 
+  if( privatee && room_ID ) {
+    // Check if this is a tournament game
+    if( tournamentId && tournamentId !== 'null' && tournamentId !== '' ) {
+      console.log(`Player ${playerId} joining TOURNAMENT room ${room_ID} tournament ${tournamentId}`);
+      
+      // Check if player is in the invitedPlayersTournament list
+      const tournamentIndex = invitedPlayersTournament.findIndex(
+        p => p.roomId === room_ID && 
+        p.tournamentId === tournamentId && 
+        (p.player_one_ID === playerId || p.player_two_ID === playerId)
+      );
+      
+      if( tournamentIndex === -1 ) {
+        console.log(`Error: Tournament match not found for player ${playerId} in room ${room_ID}`);
+        connection.socket.send(JSON.stringify({
+          type: 'tournamentNotFound',
+          message: 'You are not invited to this tournament match.'
+        }));
+        connection.socket.close();
+        return;
+      }
+      
+      const tournamentMatch = invitedPlayersTournament[tournamentIndex];
+      
+      // Check if this is the first player to connect
+      if( !tournamentMatch.player_one_socket && !tournamentMatch.player_two_socket ) {
+        // First player connecting - store socket temporarily
+        if( tournamentMatch.player_one_ID === playerId ) {
+          (tournamentMatch as any).player_one_socket = connection.socket;
+        } else {
+          (tournamentMatch as any).player_two_socket = connection.socket;
+        }
+        console.log(`First tournament player ${playerId} connected for room ${room_ID}. Waiting for opponent...`);
+        connection.socket.send(JSON.stringify({
+          type: 'waitingForOpponent',
+          message: 'Waiting for tournament opponent...',
+          tournamentId: tournamentId,
+          roomId: room_ID
+        }));
+      } else {
+        // Second player connecting - start the game
+        console.log(`Second tournament player ${playerId} connected for room ${room_ID}. Starting tournament game...`);
+        
+        let playerOneSocket, playerTwoSocket;
+        if( tournamentMatch.player_one_ID === playerId ) {
+          playerOneSocket = connection.socket;
+          playerTwoSocket = (tournamentMatch as any).player_two_socket;
+        } else {
+          playerOneSocket = (tournamentMatch as any).player_one_socket;
+          playerTwoSocket = connection.socket;
+        }
+        
+        const playerOne = { playerId: tournamentMatch.player_one_ID, socket: playerOneSocket };
+        const playerTwo = { playerId: tournamentMatch.player_two_ID, socket: playerTwoSocket };
+        
+        createGameForTwoPlayers(playerOne, playerTwo, true, room_ID);
+        
+        // Remove from tournament list
+        invitedPlayersTournament.splice(tournamentIndex, 1);
+      }
+      
+      return;
+    }
+    
+    // Regular private game (not tournament)
+    console.log(`Player ${playerId} joining private room ${room_ID} player to  ${playerinvitID}`);
+    // Check if the player one or two in the invitedPlayers list 
+    //if not push to the invitedPlayers list
+    const invitedPlayerIndex = invitedPlayers.findIndex(p => p.roomId === room_ID && (p.playerId === playerId || p.player_two_ID === playerId) );
+    if( invitedPlayerIndex === -1  ) {
+      if( !playerinvitID  || playerinvitID===undefined || playerinvitID===null
+         || playerinvitID==="" ||playerinvitID==="null" ) 
+      {
+        console.log(`Error: playerinvitID is undefined for player ${playerId} joining private room ${room_ID}`);
+        return;
+      }
+      invitedPlayers.push({ playerId, socket: connection.socket, roomId: room_ID, player_two_ID: playerinvitID });
+      console.log(`Player ${playerId} added to invitedPlayers list for room ${room_ID}`);
+    }
+    else
+    {
+      console.log(`Player ${playerId} is already in the invitedPlayers list for room ${room_ID}`);
+      //statr the game if both players are connected
+      // export const invitedPlayers: Array<{ playerId: string; socket: any; roomId: string; player_two_ID: string }> = [];
+      const invitedPlayerIndex = invitedPlayers.findIndex(p => p.roomId === room_ID && (p.playerId === playerId || p.player_two_ID === playerId) );
+      const invitedPlayer = invitedPlayers[invitedPlayerIndex];
+   
+      const playerOne = { playerId: invitedPlayer.playerId , socket: invitedPlayer.socket };
+      const playerTwo = { playerId: invitedPlayer.player_two_ID , socket: connection.socket };
+    
+      if( playerOne && playerTwo ) {
+        console.log(`Both players connected for private room ${room_ID}. Starting game...`);
+        createGameForTwoPlayers(playerOne, playerTwo);
+        //remove the players from the invitedPlayers list
+        invitedPlayers.splice(invitedPlayerIndex,1);
+      }
+      else  
+      {
+        console.log(`Waiting for both players to connect for private room ${room_ID}.`);
+      }
+
+    }
+
+    
+
+
+    return;
+
+  };
 
   // Check if there's a waiting player
   if (waitingPlayers.length > 0) 
@@ -107,9 +218,10 @@ const generateGameId = (): string => {
 };
 
 // Create a new game for two matched players
-const createGameForTwoPlayers = (player1: { playerId: string; socket: any }, player2: { playerId: string; socket: any }) => {
-  const gameId = generateGameId();
+const createGameForTwoPlayers = (player1: { playerId: string; socket: any }, player2: { playerId: string; socket: any },privatee?:boolean,game_Id?:string) => {
   
+  const gameId = (privatee && game_Id) ? game_Id : generateGameId();
+
   const room: GameRoom = {
     id: gameId,
     gameState: createGameState(gameId),
@@ -207,7 +319,6 @@ const createGameForTwoPlayers = (player1: { playerId: string; socket: any }, pla
     });
   }, COUNTDOWN_TIME *1000); // COUNTDOWN_TIME second delay before auto-start
 };
-
 
 // Create initial game state
 const createGameState = (gameId: string): GameState => ({

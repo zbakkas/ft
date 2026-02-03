@@ -17,7 +17,8 @@ import {
   PADDLE_SPEED,
   waitingPlayers,
   COUNTDOWN_TIME,
-  BALL_PHYSICS
+  BALL_PHYSICS,
+  invitedPlayersTournament
 } from './ts/types';
 import { getAllGameResults, getPlayerResults } from './ts/database';
 
@@ -55,6 +56,92 @@ fastify.get('/api/game-results/:playerId', async (req, reply) => {
   } catch (error) {
     return { success: false, error: 'Failed to fetch player results' };
   }
+});
+
+// API endpoint to create a tournament invitation
+fastify.post('/api/tournament/invite', async (req, reply) => {
+  try {
+    const { player_one_ID, player_two_ID, roomId, tournamentId } = req.body as {
+      player_one_ID: string;
+      player_two_ID: string;
+      roomId: string;
+      tournamentId: string;
+    };
+
+    if (!player_one_ID || !player_two_ID || !roomId || !tournamentId) {
+      return { success: false, error: 'Missing required fields: player_one_ID, player_two_ID, roomId, tournamentId' };
+    }
+
+    // Check if this room already exists
+    const existingInvite = invitedPlayersTournament.find(
+      p => p.roomId === roomId
+    );
+
+    if (existingInvite) {
+      return { success: false, error: 'Tournament match already exists for this room' };
+    }
+
+    // Add to tournament invitations
+    invitedPlayersTournament.push({
+      player_one_ID,
+      player_two_ID,
+      roomId,
+      tournamentId,
+      player_one_socket: null,
+      player_two_socket: null
+    });
+
+    console.log(`Tournament invitation created: Player ${player_one_ID} vs ${player_two_ID} in tournament ${tournamentId}, room ${roomId}`);
+
+    return { 
+      success: true, 
+      message: 'Tournament invitation created',
+      data: { player_one_ID, player_two_ID, roomId, tournamentId }
+    };
+  } catch (error) {
+    return { success: false, error: 'Failed to create tournament invitation' };
+  }
+});
+
+// API endpoint to get all tournament invitations
+fastify.get('/api/tournament/invites', async (req, reply) => {
+  return { 
+    success: true, 
+    data: invitedPlayersTournament.map(p => ({
+      player_one_ID: p.player_one_ID,
+      player_two_ID: p.player_two_ID,
+      roomId: p.roomId,
+      tournamentId: p.tournamentId
+    }))
+  };
+});
+
+// API endpoint to get tournament invitations by tournament ID
+fastify.get('/api/tournament/:tournamentId/invites', async (req, reply) => {
+  const { tournamentId } = req.params as { tournamentId: string };
+  const invites = invitedPlayersTournament.filter(p => p.tournamentId === tournamentId);
+  return { 
+    success: true, 
+    data: invites.map(p => ({
+      player_one_ID: p.player_one_ID,
+      player_two_ID: p.player_two_ID,
+      roomId: p.roomId,
+      tournamentId: p.tournamentId
+    }))
+  };
+});
+
+// API endpoint to delete a tournament invitation
+fastify.delete('/api/tournament/invite/:roomId', async (req, reply) => {
+  const { roomId } = req.params as { roomId: string };
+  const index = invitedPlayersTournament.findIndex(p => p.roomId === roomId);
+  
+  if (index === -1) {
+    return { success: false, error: 'Tournament invitation not found' };
+  }
+  
+  invitedPlayersTournament.splice(index, 1);
+  return { success: true, message: 'Tournament invitation deleted' };
 });
 
 // Start server
@@ -129,7 +216,9 @@ fastify.register(async function (fastify) {
   }
   fastify.get('/ws', { websocket: true }, (connection, req) => {
     const {userId: playerId} = req.query as QueryGM;
+    const { privatee, roomId, player_two_Id, tournamentId } = req.query as { privatee: string; roomId: string ; player_two_Id:string; tournamentId:string};
     
+    console.log("Private param:", privatee, "Room ID:", roomId, "Player _tow ID:", player_two_Id, "Tournament ID:", tournamentId);
     // Check if player is already in an active game
     // Check if player is already in waiting queue or has invalid playerId
     const activeGameCheck = isPlayerInActiveGame(playerId);
@@ -145,23 +234,30 @@ fastify.register(async function (fastify) {
     console.log(`Player ${playerId} connected to default endpoint (1v1)`);
     
     // Default to 1v1 mode
-    handlePlayerJoin(connection, playerId);
+    if( privatee === 'true' && roomId ) {
+      handlePlayerJoin(connection, playerId, true, roomId, player_two_Id, tournamentId);
+    }
+    else
+    {
+      handlePlayerJoin(connection, playerId);
+    }
     
     setupMessageHandlers(connection, playerId, '1v1');
   });
 
   // 1v1 2D specific endpoint
-  fastify.get('/ws/1v1', { websocket: true }, (connection, req) => {
-    const playerId = Math.random().toString(36).substring(7);
-    console.log(`Player ${playerId} connected to 1v1 mode`);
+  // fastify.get('/ws/1v1', { websocket: true }, (connection, req) => {
+  //   const playerId = Math.random().toString(36).substring(7);
+  //   console.log(`Player ${playerId} connected to 1v1 mode`);
     
-    handlePlayerJoin(connection, playerId);
+  //   handlePlayerJoin(connection, playerId);
     
-    setupMessageHandlers(connection, playerId, '1v1');
-  });
+  //   setupMessageHandlers(connection, playerId, '1v1');
+  // });
   // 1v1 3D specific endpoint
   fastify.get('/ws/3d', { websocket: true }, (connection, req) => {
-    const playerId = Math.random().toString(36).substring(7);
+    // const playerId = Math.random().toString(36).substring(7);
+    const {userId: playerId} = req.query as QueryGM;
     console.log(`Player ${playerId} connected to 3d mode`);
     
     handlePlayerJoin_3d(connection, playerId);
