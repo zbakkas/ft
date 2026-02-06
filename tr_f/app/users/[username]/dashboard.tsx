@@ -6,7 +6,9 @@ import Error from "@/app/components/Error";
 import ChatInterface from "./chatInterface";
 
 export default async function Dashboard( username: string, token: string | null) {
-  const res = await fetch(`http://localhost:3000/api/v1/user-mgmt/@${username}`, {
+  const API_URL = process.env.API_URL || "http://localhost:3000";
+  const PUBLIC_API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+  const res = await fetch(`${API_URL}/api/v1/user-mgmt/@${username}`, {
     headers: {
       Cookie: `token=${token}`,
     },
@@ -38,7 +40,7 @@ export default async function Dashboard( username: string, token: string | null)
             <div className="h-64 aspect-square rounded-full overflow-hidden border-4 border-gray-300">
               <Avatar className="h-full w-full">
                 <AvatarImage
-                  src={`http://localhost:3000/api/v1/user-mgmt/@${username}/avatar?size=large`}
+                  src={`${PUBLIC_API_URL}/api/v1/user-mgmt/@${username}/avatar?size=large`}
                   className="h-full w-full select-none"
                   draggable={false}
                 />

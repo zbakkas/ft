@@ -147,9 +147,9 @@ fastify.delete('/api/tournament/invite/:roomId', async (req, reply) => {
 // Start server
 const start = async () => {
   try {
-    await fastify.listen({ port: 3006, host: '0.0.0.0' });
-    console.log('🎮 Pong server running on http://localhost:3001');
-    console.log('🚀 WebSocket endpoint: ws://localhost:3001/ws');
+    await fastify.listen({ port: 7009, host: '0.0.0.0' });
+    console.log('🎮 Pong server running on http://localhost:7009');
+    console.log('🚀 WebSocket endpoint: ws://localhost:7009/ws');
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);
@@ -307,13 +307,13 @@ const setupMessageHandlers = (connection: any, playerId: string, gameMode: strin
           handlePaddleMove_3D(playerId, data.direction);
           break;
           
-        case 'startGame':
-          handleStartGame(playerId);
-          break;
+        // case 'startGame':
+        //   handleStartGame(playerId);
+        //   break;
           
-        case 'pauseGame':
-          handlePauseGame(playerId);
-          break;
+        // case 'pauseGame':
+        //   handlePauseGame(playerId);
+        //   break;
           
         case 'resetGame':
           handleResetGame(playerId);

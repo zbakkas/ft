@@ -5,6 +5,8 @@ import { Ban, UserMinus, UserPlus } from "lucide-react";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { useRl } from "@/app/context/RlContext";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+
 export default function RlManager({ username }: { username: string }) {
     const [uid, setUid] = useState<string>("");
     const [loading, setLoading] = useState(true);
@@ -14,7 +16,7 @@ export default function RlManager({ username }: { username: string }) {
     useEffect(() => {
         async function fetchData() {
             try {
-                const res = await fetch(`http://localhost:3000/api/v1/user-mgmt/@${username}`, {
+                const res = await fetch(`${API_URL}/api/v1/user-mgmt/@${username}`, {
                     credentials: "include",
                 });
                 if (!res.ok) {
@@ -127,7 +129,7 @@ export default function RlManager({ username }: { username: string }) {
 }
 
 export async function BlockUser(uid: string, setRelation: Dispatch<SetStateAction<"none" | "friend" | "blocked" | "incoming" | "outgoing">>) {
-  const res = await fetch(`http://localhost:3000/api/v1/user-mgmt/blocks/${uid}`, {
+  const res = await fetch(`${API_URL}/api/v1/user-mgmt/blocks/${uid}`, {
     method: "POST",
     credentials: "include",
   });
@@ -137,7 +139,7 @@ export async function BlockUser(uid: string, setRelation: Dispatch<SetStateActio
 }
 
 export async function AddFriend(uid: string, setRelation: Dispatch<SetStateAction<"none" | "friend" | "blocked" | "incoming" | "outgoing">>) {
-  const res = await fetch(`http://localhost:3000/api/v1/user-mgmt/friends/${uid}/add`, {
+  const res = await fetch(`${API_URL}/api/v1/user-mgmt/friends/${uid}/add`, {
     method: "POST",
     credentials: "include",
   });
@@ -147,7 +149,7 @@ export async function AddFriend(uid: string, setRelation: Dispatch<SetStateActio
 }
 
 export async function RemoveFriend(uid: string, setRelation: Dispatch<SetStateAction<"none" | "friend" | "blocked" | "incoming" | "outgoing">>) {
-  const res = await fetch(`http://localhost:3000/api/v1/user-mgmt/friends/${uid}/remove`, {
+  const res = await fetch(`${API_URL}/api/v1/user-mgmt/friends/${uid}/remove`, {
     method: "PATCH",
     credentials: "include",
   });
@@ -157,7 +159,7 @@ export async function RemoveFriend(uid: string, setRelation: Dispatch<SetStateAc
 }
 
 export async function AcceptFriendRequest(uid: string, setRelation: Dispatch<SetStateAction<"none" | "friend" | "blocked" | "incoming" | "outgoing">>) {
-  const res = await fetch(`http://localhost:3000/api/v1/user-mgmt/friends/${uid}/accept`, {
+  const res = await fetch(`${API_URL}/api/v1/user-mgmt/friends/${uid}/accept`, {
     method: "PATCH",
     credentials: "include",
   });
@@ -167,7 +169,7 @@ export async function AcceptFriendRequest(uid: string, setRelation: Dispatch<Set
 }
 
 export async function DeclineFriendRequest(uid: string, setRelation: Dispatch<SetStateAction<"none" | "friend" | "blocked" | "incoming" | "outgoing">>) {
-  const res = await fetch(`http://localhost:3000/api/v1/user-mgmt/friends/${uid}/decline`, {
+  const res = await fetch(`${API_URL}/api/v1/user-mgmt/friends/${uid}/decline`, {
     method: "PATCH",
     credentials: "include",
   });
@@ -177,7 +179,7 @@ export async function DeclineFriendRequest(uid: string, setRelation: Dispatch<Se
 }
 
 export async function CancelFriendRequest(uid: string, setRelation: Dispatch<SetStateAction<"none" | "friend" | "blocked" | "incoming" | "outgoing">>) {
-  const res = await fetch(`http://localhost:3000/api/v1/user-mgmt/friends/${uid}/cancel`, {
+  const res = await fetch(`${API_URL}/api/v1/user-mgmt/friends/${uid}/cancel`, {
     method: "PATCH",
     credentials: "include",
   });
@@ -187,7 +189,7 @@ export async function CancelFriendRequest(uid: string, setRelation: Dispatch<Set
 }
 
 export async function Unblock(uid: string, username: string, setRelation: Dispatch<SetStateAction<"none" | "friend" | "blocked" | "incoming" | "outgoing">>) {
-  const res = await fetch(`http://localhost:3000/api/v1/user-mgmt/blocks/${uid}`, {
+  const res = await fetch(`${API_URL}/api/v1/user-mgmt/blocks/${uid}`, {
     method: "DELETE",
     credentials: "include",
   });
@@ -198,7 +200,7 @@ export async function Unblock(uid: string, username: string, setRelation: Dispat
 
 export async function GetRelation(username: string) {
   let relation: "none" | "friend" | "blocked" | "incoming" | "outgoing" = "none";
-  let res = await fetch(`http://localhost:3000/api/v1/user-mgmt/friends?status=received`, {
+  let res = await fetch(`${API_URL}/api/v1/user-mgmt/friends?status=received`, {
       credentials: "include",
   });
   if (res.status === 200) {
@@ -210,7 +212,7 @@ export async function GetRelation(username: string) {
   if (relation != "none") {
     return relation;
   }
-  res = await fetch(`http://localhost:3000/api/v1/user-mgmt/friends?status=sent`, {
+  res = await fetch(`${API_URL}/api/v1/user-mgmt/friends?status=sent`, {
         credentials: "include",
   });
   if (res.status === 200) {
@@ -222,7 +224,7 @@ export async function GetRelation(username: string) {
   if (relation != "none") {
     return relation;
   }
-  res = await fetch(`http://localhost:3000/api/v1/user-mgmt/friends?status=accepted`, {
+  res = await fetch(`${API_URL}/api/v1/user-mgmt/friends?status=accepted`, {
         credentials: "include",
   });
   if (res.status === 200) {
@@ -234,7 +236,7 @@ export async function GetRelation(username: string) {
   if (relation != "none") {
     return relation;
   }
-  res = await fetch(`http://localhost:3000/api/v1/user-mgmt/blocks`, {
+  res = await fetch(`${API_URL}/api/v1/user-mgmt/blocks`, {
         credentials: "include",
   });
   if (res.status === 200) {

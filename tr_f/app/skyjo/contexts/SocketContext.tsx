@@ -158,8 +158,9 @@ export function SocketProvider({ children }: SocketProviderProps) {
 
     useEffect(() => 
     {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
       // Initialize socket connection once
-      const newSocket = io('http://localhost:3000', {
+      const newSocket = io(API_URL, {
         path: '/ws/skyjo/socket.io',
         transports: ['websocket', 'polling']
       });

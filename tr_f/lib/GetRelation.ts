@@ -1,7 +1,8 @@
 
 export async function GetRelation(username: string, token: string | null) {
+  const API_URL = process.env.API_URL || "http://localhost:3000";
   let relation: "none" | "friend" | "blocked" | "incoming" | "outgoing" = "none";
-  let res = await fetch(`http://localhost:3000/api/v1/user-mgmt/friends?status=received`, {
+  let res = await fetch(`${API_URL}/api/v1/user-mgmt/friends?status=received`, {
         headers: {
             Cookie: `token=${token}`,
         },
@@ -15,7 +16,7 @@ export async function GetRelation(username: string, token: string | null) {
   if (relation != "none") {
     return relation;
   }
-  res = await fetch(`http://localhost:3000/api/v1/user-mgmt/friends?status=sent`, {
+  res = await fetch(`${API_URL}/api/v1/user-mgmt/friends?status=sent`, {
         headers: {
             Cookie: `token=${token}`,
         },
@@ -29,7 +30,7 @@ export async function GetRelation(username: string, token: string | null) {
   if (relation != "none") {
     return relation;
   }
-  res = await fetch(`http://localhost:3000/api/v1/user-mgmt/friends?status=accepted`, {
+  res = await fetch(`${API_URL}/api/v1/user-mgmt/friends?status=accepted`, {
         headers: {
             Cookie: `token=${token}`,
         },
@@ -43,7 +44,7 @@ export async function GetRelation(username: string, token: string | null) {
   if (relation != "none") {
     return relation;
   }
-  res = await fetch(`http://localhost:3000/api/v1/user-mgmt/blocks`, {
+  res = await fetch(`${API_URL}/api/v1/user-mgmt/blocks`, {
         credentials: "include",
   });
   if (res.status === 200) {

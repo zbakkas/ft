@@ -9,9 +9,10 @@ export default function NotificationPopover() {
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
     const fetchNotifications = async () => {
       try {
-        const res = await fetch("http://localhost:3000/api/v1/notification/notifications", {
+        const res = await fetch(`${API_URL}/api/v1/notification/notifications`, {
           method: "GET",
           credentials: "include",
         });

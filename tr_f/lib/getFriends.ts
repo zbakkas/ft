@@ -5,7 +5,8 @@ export async function getFriends() {
     const cookieStore: ReadonlyRequestCookies = await cookies();
     const token: string | null = cookieStore.get("token")?.value || null;
     
-    const res = await fetch('http://localhost:3000/api/v1/user-mgmt/friends?status=accepted', {
+    const API_URL = process.env.API_URL || "http://localhost:3000";
+    const res = await fetch(`${API_URL}/api/v1/user-mgmt/friends?status=accepted`, {
         headers: {
             Cookie: `token=${token}`,
         },

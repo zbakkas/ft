@@ -26,14 +26,14 @@ The `game_results` table contains:
 
 ### Get all game results
 ```
-GET http://localhost:3006/api/game-results
+GET http://localhost:3000/api/v1/game/game-results
 ```
 
 Returns all game results sorted by most recent.
 
 ### Get results for a specific player
 ```
-GET http://localhost:3006/api/game-results/:playerId
+GET http://localhost:3000/api/v1/game/game-results/:playerId
 ```
 
 Returns all games where the specified player participated.
@@ -46,10 +46,10 @@ The database is stored at: `backend/game_results.db`
 
 ```bash
 # Get all results
-curl http://localhost:3006/api/game-results
+curl http://localhost:3000/api/v1/game/game-results
 
 # Get results for a specific player
-curl http://localhost:3006/api/game-results/player123
+curl http://localhost:3000/api/v1/game/game-results/player123
 ```
 
 ## How It Works

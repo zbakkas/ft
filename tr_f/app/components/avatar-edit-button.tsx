@@ -18,7 +18,8 @@ export default function AvatarEditButton({
   const handleImageUpload = async (file: File) => {
     const formData = new FormData();
     formData.append("avatar", file);
-    await fetch(`http://localhost:3000/api/v1/user-mgmt/me/avatar`, {
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+    await fetch(`${API_URL}/api/v1/user-mgmt/me/avatar`, {
       method: "PUT",
       body: formData,
       credentials: "include",

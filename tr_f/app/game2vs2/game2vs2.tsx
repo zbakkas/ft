@@ -8,14 +8,15 @@ export interface UserProfile {
 
 // --- Utility: Fetch User Data ---
 const fetchUserProfile = async (id: string): Promise<UserProfile> => {
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
   try {
-    const response = await fetch(`http://localhost:3000/api/v1/user-mgmt/${id}`, {
+    const response = await fetch(`${API_URL}/api/v1/user-mgmt/${id}`, {
       credentials: 'include'
     });
     if (!response.ok) throw new Error('Failed to fetch user');
     
     const data = await response.json();
-    const fullAvatarUrl = `http://localhost:3000/api/v1/user-mgmt/@${data.username}/avatar`;
+    const fullAvatarUrl = `${API_URL}/api/v1/user-mgmt/@${data.username}/avatar`;
 
     return {
       username: data.username,

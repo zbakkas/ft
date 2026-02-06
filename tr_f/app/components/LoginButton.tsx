@@ -16,6 +16,7 @@ export default function LoginButton() : ReactElement<any, any> {
   const [confirmPassword, setConfirmPassword] : [string, Dispatch<SetStateAction<string>>] = useState("");
   const navigate = useRouter()
   const { setVersion } = useAvatar()!;
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
   
   const handleSubmit = async (e: React.FormEvent) : Promise<undefined> => {
     e.preventDefault();
@@ -24,7 +25,7 @@ export default function LoginButton() : ReactElement<any, any> {
       ? { email, username, password, confirmPassword }
       : { email, password };
 
-    const endpoint = isRegister ? "http://localhost:3000/api/v1/auth/register" : "http://localhost:3000/api/v1/auth/login";
+    const endpoint = isRegister ? `${API_URL}/api/v1/auth/register` : `${API_URL}/api/v1/auth/login`;
 
     const res = await fetch(endpoint, {
       method: "POST",

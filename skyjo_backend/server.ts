@@ -1,17 +1,26 @@
 import Fastify from 'fastify';
 import fastifySocketIo from 'fastify-socket.io';
+import { Server, Socket } from 'socket.io';
 import { GameSettings, CardModel ,playerWithCards, rooms,RoundResult} from './types';
 import { TurnManager, buildAllCards, checkAllPlayersLastTurn, checkLastTurn, clearRoomTimer, createRandomCardsModel, createSafeRoomData, getARandomCard, hasRemovals, markCompleteLines, removeMarkedCards, remove_fun, resetGame, reset_last_turn, score, setAllCardsVisible, startRoomTimer } from './gameLogic';
 import { getPlayerStats, getPlayerGameHistory, getFrequentOpponents, getLeaderboard } from './database';
 import { get } from 'http';
 import { send } from 'process';
+
+// Extend Fastify types to include socket.io
+declare module 'fastify' {
+  interface FastifyInstance {
+    io: Server;
+  }
+}
+
 const fastify = Fastify({ logger: true });
 
 // Register Socket.IO
 async function mmm() {
   await fastify.register(fastifySocketIo, {
     cors: {
-      origin: "http://localhost:3000", // Your Next.js app URL
+      origin: "*", // More permissive for proxying/docker
       methods: ["GET", "POST"]
     }
   });
@@ -100,7 +109,7 @@ fastify.ready().then(() => {
    type QueryGM = {
     userId: string;
   }
-  fastify.io.on('connection', (socket) => {
+  fastify.io.on('connection', (socket: Socket) => {
     const {userId: playerId} = socket.handshake.query as QueryGM;
 
     console.log(`🎮 Player connected: ${playerId}`);
@@ -119,7 +128,7 @@ fastify.ready().then(() => {
     };
     players.set(playerId, newPlayer);
 
-    socket.on('join-lobby', (data) => {
+    socket.on('join-lobby', (data: { playerName: string }) => {
       const { playerName } = data;
       const player = players.get(playerId);
       if (player) {
@@ -150,14 +159,14 @@ fastify.ready().then(() => {
         ownirName: playerName,
         max_players: max_players,
         password: Password_room,
-        players: [],
+        players: [] as string[],
         status: 'waiting',
         players_Socket: new Map<string, any>(), // playerId -> socket
         Allcards: buildAllCards(), // Initialize with random cards
         // cards: [] as CardModel[],
         playersWithCards: [] as playerWithCards[],
         name_of_turn: "",
-        avatars: [],
+        avatars: [] as string[],
 
         ////////////////////
         card_in_table: { id: 'initial', value: 0, isVisible: true },
@@ -631,7 +640,7 @@ export function deleteRoom(roomId: string) {
 
 // Start server
 const start = async () => {
-  mmm();
+  await mmm();
   try {
     await fastify.listen({ port: 3007, host: '0.0.0.0' });
     console.log('🎮 Pong server running on http://localhost:3007');

@@ -7,7 +7,8 @@ export async function verify(): Promise<boolean> {
     if (!token) {
         return false;
     }
-    const res = await fetch("http://localhost:3000/api/v1/auth/verify", {
+    const API_URL = process.env.API_URL || "http://localhost:3000";
+    const res = await fetch(`${API_URL}/api/v1/auth/verify`, {
         headers: {
             Cookie: `token=${token}`,
         },

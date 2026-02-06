@@ -12,14 +12,15 @@ const COUNTDOWN_TIME = 5;
 
 // --- Utility: Fetch User Data ---
 const fetchUserProfile = async (id: string): Promise<UserProfile> => {
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
   try {
-    const response = await fetch(`http://localhost:3000/api/v1/user-mgmt/${id}`, {
+    const response = await fetch(`${API_URL}/api/v1/user-mgmt/${id}`, {
       credentials: 'include'
     });
     if (!response.ok) throw new Error('Failed to fetch user');
     
     const data = await response.json();
-    const fullAvatarUrl = `http://localhost:3000/api/v1/user-mgmt/@${data.username}/avatar`;
+    const fullAvatarUrl = `${API_URL}/api/v1/user-mgmt/@${data.username}/avatar`;
 
     return {
       username: data.username,
@@ -78,7 +79,9 @@ export default function MultiplayerPongGame_2D() {
   const connectToServer = () => {
     if (connectionStatus === 'connected' || wsRef.current) return;
 
-    const wsUrl = `ws://localhost:3000/ws/game/ws?privatee=${get_privatee}&roomId=${get_roomId}&player_two_Id=${get_playerinvitID}&tournamentId=${get_tournamentId}`;
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+    const WS_URL = API_URL.replace(/^http/, 'ws');
+    const wsUrl = `${WS_URL}/ws/game/ws?privatee=${get_privatee}&roomId=${get_roomId}&player_two_Id=${get_playerinvitID}&tournamentId=${get_tournamentId}`;
     setConnectionStatus('connecting');
 
     const ws = new WebSocket(wsUrl);

@@ -9,6 +9,8 @@ import { useLang } from "../context/LangContext";
 
 type RelationshipMode = "friends" | "sent" | "received" | "blocks";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+
 export default function RelationshipManager() {
     const [activeMode, setActiveMode] = useState<RelationshipMode>("friends");
     const { lang } = useLang()!;
@@ -99,13 +101,13 @@ function Relatives({ relationshipMode } : {relationshipMode : string}) {
             
             let url: string;
             if (relationshipMode === "friends") {
-                url = `http://localhost:3000/api/v1/user-mgmt/friends?status=accepted`;
+                url = `${API_URL}/api/v1/user-mgmt/friends?status=accepted`;
             } else if (relationshipMode === "sent") {
-                url = `http://localhost:3000/api/v1/user-mgmt/friends?status=sent`;
+                url = `${API_URL}/api/v1/user-mgmt/friends?status=sent`;
             } else if (relationshipMode === "received") {
-                url = `http://localhost:3000/api/v1/user-mgmt/friends?status=received`;
+                url = `${API_URL}/api/v1/user-mgmt/friends?status=received`;
             } else if (relationshipMode === "blocks") {
-                url = `http://localhost:3000/api/v1/user-mgmt/blocks`;
+                url = `${API_URL}/api/v1/user-mgmt/blocks`;
             } else {
                 setError("Invalid relationship mode");
                 setLoading(false);
@@ -162,7 +164,7 @@ function Relatives({ relationshipMode } : {relationshipMode : string}) {
                     <Link href={`/users/${relative.username}`} className="flex items-center gap-3">
                         <Avatar className="aspect-square rounded-full overflow-hidden w-10 h-10 text-blue-500 border border-black">
                             <AvatarImage
-                            src={`http://localhost:3000/api/v1/user-mgmt/@${relative.username}/avatar?size=medium`}
+                            src={`${API_URL}/api/v1/user-mgmt/@${relative.username}/avatar?size=medium`}
                             className="h-full w-full"
                             />
                             <AvatarFallback>
@@ -183,7 +185,7 @@ function Relatives({ relationshipMode } : {relationshipMode : string}) {
 }
 
 export async function BlockUser(uid: string, data: any[], setData: Dispatch<any>) {
-  const res = await fetch(`http://localhost:3000/api/v1/user-mgmt/blocks/${uid}`, {
+  const res = await fetch(`${API_URL}/api/v1/user-mgmt/blocks/${uid}`, {
     method: "POST",
     credentials: "include",
   });
@@ -193,7 +195,7 @@ export async function BlockUser(uid: string, data: any[], setData: Dispatch<any>
 }
 
 export async function AddFriend(uid: string, data: any[], setData: Dispatch<any>) {
-  const res = await fetch(`http://localhost:3000/api/v1/user-mgmt/friends/${uid}/add`, {
+  const res = await fetch(`${API_URL}/api/v1/user-mgmt/friends/${uid}/add`, {
     method: "POST",
     credentials: "include",
   });
@@ -203,7 +205,7 @@ export async function AddFriend(uid: string, data: any[], setData: Dispatch<any>
 }
 
 export async function RemoveFriend(uid: string, data: any[], setData: Dispatch<any>) {
-  const res = await fetch(`http://localhost:3000/api/v1/user-mgmt/friends/${uid}/remove`, {
+  const res = await fetch(`${API_URL}/api/v1/user-mgmt/friends/${uid}/remove`, {
     method: "PATCH",
     credentials: "include",
   });
@@ -213,7 +215,7 @@ export async function RemoveFriend(uid: string, data: any[], setData: Dispatch<a
 }
 
 export async function AcceptFriendRequest(uid: string, data: any[], setData: Dispatch<any>) {
-  const res = await fetch(`http://localhost:3000/api/v1/user-mgmt/friends/${uid}/accept`, {
+  const res = await fetch(`${API_URL}/api/v1/user-mgmt/friends/${uid}/accept`, {
     method: "PATCH",
     credentials: "include",
   });
@@ -223,7 +225,7 @@ export async function AcceptFriendRequest(uid: string, data: any[], setData: Dis
 }
 
 export async function DeclineFriendRequest(uid: string, data: any[], setData: Dispatch<any>) {
-  const res = await fetch(`http://localhost:3000/api/v1/user-mgmt/friends/${uid}/decline`, {
+  const res = await fetch(`${API_URL}/api/v1/user-mgmt/friends/${uid}/decline`, {
     method: "PATCH",
     credentials: "include",
   });
@@ -233,7 +235,7 @@ export async function DeclineFriendRequest(uid: string, data: any[], setData: Di
 }
 
 export async function CancelFriendRequest(uid: string, data: any[], setData: Dispatch<any>) {
-  const res = await fetch(`http://localhost:3000/api/v1/user-mgmt/friends/${uid}/cancel`, {
+  const res = await fetch(`${API_URL}/api/v1/user-mgmt/friends/${uid}/cancel`, {
     method: "PATCH",
     credentials: "include",
   });
@@ -243,7 +245,7 @@ export async function CancelFriendRequest(uid: string, data: any[], setData: Dis
 }
 
 export async function Unblock(uid: string, data: any[], setData: Dispatch<any>) {
-  const res = await fetch(`http://localhost:3000/api/v1/user-mgmt/blocks/${uid}`, {
+  const res = await fetch(`${API_URL}/api/v1/user-mgmt/blocks/${uid}`, {
     method: "DELETE",
     credentials: "include",
   });

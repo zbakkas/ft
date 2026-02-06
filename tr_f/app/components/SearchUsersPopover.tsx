@@ -17,6 +17,8 @@ type User = {
   updatedAt: string;
 };
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+
 export default function UserSearchPopover() {
   const [query, setQuery] = React.useState("");
   const [results, setResults] = React.useState<User[]>([]);
@@ -30,7 +32,7 @@ export default function UserSearchPopover() {
       }
       setLoading(true);
       try {
-        const res = await fetch(`http://localhost:3000/api/v1/user-mgmt/users?q=${encodeURIComponent(q)}`, {
+        const res = await fetch(`${API_URL}/api/v1/user-mgmt/users?q=${encodeURIComponent(q)}`, {
           credentials: "include",
         });
         if (!res.ok) {
@@ -88,7 +90,7 @@ export default function UserSearchPopover() {
                     >
                       <Avatar className="aspect-square rounded-full overflow-hidden w-5 h-5 text-blue-500 border border-black">
                         <AvatarImage
-                          src={`http://localhost:3000/api/v1/user-mgmt/@${user.username}/avatar?size=small`}
+                          src={`${API_URL}/api/v1/user-mgmt/@${user.username}/avatar?size=small`}
                           className="h-full w-full"
                         />
                         <AvatarFallback>

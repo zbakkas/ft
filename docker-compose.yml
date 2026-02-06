@@ -1,0 +1,186 @@
+services:
+  # ==================== FRONTEND ====================
+  frontend:
+    build:
+      context: ./tr_f
+      dockerfile: Dockerfile
+    container_name: frontend
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=production
+      - NODE_OPTIONS=--max-old-space-size=2048
+      - API_URL=http://api_gateway:3000
+      - NEXT_PUBLIC_API_URL=http://localhost:3000
+    deploy:
+      resources:
+        limits:
+          memory: 3G
+        reservations:
+          memory: 1G
+    networks:
+      - transcendence-network
+    depends_on:
+      - game_backend
+      - skyjo_backend
+      - api_gateway
+
+  # ==================== GAME BACKENDS ====================
+  game_backend:
+    build:
+      context: ./game_backend
+      dockerfile: Dockerfile
+    container_name: game_backend
+    ports:
+      - "7009:7009"
+    environment:
+      - NODE_ENV=production
+    networks:
+      - transcendence-network
+
+  skyjo_backend:
+    build:
+      context: ./skyjo_backend
+      dockerfile: Dockerfile
+    container_name: skyjo_backend
+    ports:
+      - "3007:3007"
+    environment:
+      - NODE_ENV=production
+    networks:
+      - transcendence-network
+
+  # ==================== TRANSCENDENCE SERVICES ====================
+  api_gateway:
+    build:
+      context: ./transcendence/services/api_gateway
+      dockerfile: Dockerfile
+    container_name: api_gateway
+    depends_on:
+      - auth
+      - tournament
+      - user-mgmt
+      - chat
+      - notification
+    env_file:
+      - ./transcendence/.env.shared
+    ports:
+      - "3000:3000"
+    networks:
+      - transcendence-network
+    volumes:
+      - logs-volume:/usr/src/logs
+
+  auth:
+    build:
+      context: ./transcendence/services/auth
+      dockerfile: Dockerfile
+    container_name: auth
+    depends_on:
+      rabbit:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    env_file:
+      - ./transcendence/.env.shared
+      - ./transcendence/services/auth/.env
+    networks:
+      - transcendence-network
+    volumes:
+      - logs-volume:/usr/src/logs
+
+  tournament:
+    build:
+      context: ./transcendence/services/tournament
+      dockerfile: Dockerfile
+    container_name: tournament
+    env_file:
+      - ./transcendence/services/tournament/.env
+    networks:
+      - transcendence-network
+    volumes:
+      - logs-volume:/usr/src/logs
+
+  user-mgmt:
+    build:
+      context: ./transcendence/services/user-mgmt
+    container_name: user-mgmt
+    depends_on:
+      rabbit:
+        condition: service_healthy
+    env_file:
+      - ./transcendence/.env.shared
+      - ./transcendence/services/user-mgmt/.env
+    networks:
+      - transcendence-network
+    volumes:
+      - logs-volume:/usr/src/logs
+
+  chat:
+    build:
+      context: ./transcendence/services/chat
+    container_name: chat
+    env_file:
+      - ./transcendence/.env.shared
+      - ./transcendence/services/chat/.env
+    depends_on:
+      rabbit:
+        condition: service_healthy
+    networks:
+      - transcendence-network
+    volumes:
+      - logs-volume:/usr/src/logs
+
+  notification:
+    build:
+      context: ./transcendence/services/notification
+    container_name: notification
+    depends_on:
+      rabbit:
+        condition: service_healthy
+      user-mgmt:
+        condition: service_started
+    env_file:
+      - ./transcendence/.env.shared
+      - ./transcendence/services/notification/.env
+    networks:
+      - transcendence-network
+    volumes:
+      - logs-volume:/usr/src/logs
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    networks:
+      - transcendence-network
+    volumes:
+      - redis-data:/data
+
+  rabbit:
+    image: rabbitmq:3-management
+    container_name: rabbit
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "status"]
+      interval: 5s
+      timeout: 10s
+      retries: 10
+    networks:
+      - transcendence-network
+    volumes:
+      - rabbit-data:/var/lib/rabbitmq
+
+networks:
+  transcendence-network:
+    name: transcendence-network
+    driver: bridge
+
+volumes:
+  logs-volume:
+    name: logs-volume
+    driver: local
+  redis-data:
+    name: redis-data
+    driver: local
+  rabbit-data:
+    name: rabbit-data
+    driver: local

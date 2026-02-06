@@ -8,9 +8,10 @@ import UserImage from "./UserImage";
 import Translated from "./Translated";
 
 export default async function Dashboard() {
+  const API_URL = process.env.API_URL || "http://localhost:3000";
   const cookieStore: ReadonlyRequestCookies = await cookies();
   const token: string | null = cookieStore.get("token")?.value || null;
-  let res = await fetch("http://localhost:3000/api/v1/user-mgmt/me", {
+  let res = await fetch(`${API_URL}/api/v1/user-mgmt/me`, {
       headers: {
         Cookie: `token=${token}`,
       },

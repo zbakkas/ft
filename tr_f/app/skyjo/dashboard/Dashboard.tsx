@@ -37,7 +37,8 @@ interface Opponent {
   count: number;
 }
 
-const API_BASE_URL = 'http://localhost:3000/api/v1/skyjo';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+const API_BASE_URL = `${API_URL}/api/v1/skyjo`;
 
 export default function Dashboard() {
   const { playerID } = useSocket();

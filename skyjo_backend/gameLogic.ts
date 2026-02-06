@@ -326,7 +326,7 @@ export function reset_last_turn (room:any, playerWithCards:playerWithCards): voi
       });
 
       // Sort by lowest score (winner in Skyjo)
-      room.round_results.sort((a, b) => a.totalScore - b.totalScore);
+      room.round_results.sort((a: RoundResult, b: RoundResult) => a.totalScore - b.totalScore);
 
       room.number_turn += 1;
       
@@ -338,7 +338,7 @@ export function reset_last_turn (room:any, playerWithCards:playerWithCards): voi
         console.log("🟢🟢🟢 Game reset after last turn 🟢🟢🟢");
         console.log("Final Results:", room.round_results);
         
-        room.players_Socket.forEach((playerSocket, socketId) => {
+        room.players_Socket.forEach((playerSocket: any, socketId: string) => {
           playerSocket.emit('final_turn_Results', room.round_results);
         });
       }
@@ -379,14 +379,14 @@ export function reset_last_turn (room:any, playerWithCards:playerWithCards): voi
           console.error('❌ Failed to save match to database:', error);
         }
         
-        room.players_Socket.forEach((playerSocket, socketId) => {
+        room.players_Socket.forEach((playerSocket: any, socketId: string) => {
           playerSocket.emit('final_turn_Results', room.round_results);
         });
         room.status = 'finished';
         clearRoomTimer(room);
 
 
-        room.players_Socket.forEach((playerSocket, socketId) => {
+        room.players_Socket.forEach((playerSocket: any, socketId: string) => {
           playerSocket.emit('game_over');
         });
 
@@ -451,11 +451,11 @@ export function remove_fun(room:any, playerWithCards:playerWithCards): void
     /// make the card in the table = markedCards removed card
     room.card_in_table.value = markedCards.flat().find(card => card.isRemoving)?.value || room.card_in_table.value; 
     // reset_last_turn(room, playerWithCards);
-    room.players_Socket.forEach((playerSocket, socketId) => {
+    room.players_Socket.forEach((playerSocket: any, socketId: string) => {
       playerSocket.emit('card-updated', {
         room: createSafeRoomData(room),
         Allplayers: room.playersWithCards,
-        name_of_turn: room.playersWithCards.find(pwc => pwc.isYourTurn)?.name,
+        name_of_turn: room.playersWithCards.find((pwc: playerWithCards) => pwc.isYourTurn)?.name,
         last_turn: room.last_tourn,
         //send first hrade cards for player_name 
         // first_hrade_cards: playerWithCards.first_hrade_cards,
@@ -486,14 +486,14 @@ export function remove_fun(room:any, playerWithCards:playerWithCards): void
     playerWithCards.score = score(playerWithCards.cards);
     reset_last_turn(room, playerWithCards);
     room.playersWithCards = TurnManager(room.playersWithCards );
-    room.name_of_turn = room.playersWithCards.find(pwc => pwc.isYourTurn)?.name || "";
+    room.name_of_turn = room.playersWithCards.find((pwc: playerWithCards) => pwc.isYourTurn)?.name || "";
     startRoomTimer(room);
-    room.players_Socket.forEach((playerSocket, socketId) => {
+    room.players_Socket.forEach((playerSocket: any, socketId: string) => {
       // playerSocket.emit('card-updated', { col, row, card, playerName: player.name });
       playerSocket.emit('card-updated', {
         room:createSafeRoomData(room),
         Allplayers: room.playersWithCards  ,
-        name_of_turn: room.playersWithCards .find(pwc => pwc.isYourTurn)?.name,  
+        name_of_turn: room.playersWithCards .find((pwc: playerWithCards) => pwc.isYourTurn)?.name,  
         last_turn: room.last_tourn,
         // first_hrade_cards: playerWithCards.first_hrade_cards,
       });
@@ -550,7 +550,7 @@ export function startRoomTimer(room: any) {
   }
   
   // Find current player
-  const currentPlayer = room.playersWithCards.find(pwc => pwc.isYourTurn);
+  const currentPlayer = room.playersWithCards.find((pwc: playerWithCards) => pwc.isYourTurn);
   if (!currentPlayer) {
     console.log(`⏰ No current player found, not starting timer`);
     return;
@@ -578,7 +578,7 @@ function handleRoomTimeout(room: any) {
   }
   
   // Find current player
-  const currentPlayer = room.playersWithCards.find(pwc => pwc.isYourTurn);
+  const currentPlayer = room.playersWithCards.find((pwc: playerWithCards) => pwc.isYourTurn);
   if (!currentPlayer) {
     console.log(`⏰ No current player found for auto-play`);
     return;

@@ -30,7 +30,8 @@ export default function LanguageDropdown({lan}: {lan: string}) {
             <button
               key={lang}
               onClick={async () => {
-                const res = await fetch(`http://localhost:3000/api/v1/user-mgmt/me`, {
+                const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+                const res = await fetch(`${API_URL}/api/v1/user-mgmt/me`, {
                   method: "PATCH",
                   credentials: "include",
                   headers: {

@@ -45,9 +45,10 @@ export default function PrivateGameSetup() {
 
   const fetchCurrentUser = async () => {
     setLoadingUser(true);
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
     try {
       // Fetch from user-mgmt/me endpoint (uses cookie authentication)
-      const response = await fetch('http://localhost:3000/api/v1/user-mgmt/me', {
+      const response = await fetch(`${API_URL}/api/v1/user-mgmt/me`, {
         credentials: 'include'
       });
       if (response.ok) {
@@ -68,9 +69,10 @@ export default function PrivateGameSetup() {
 
   const fetchFriends = async () => {
     setLoadingFriends(true);
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
     try {
       // Adjust this endpoint to match your friends API
-      const response = await fetch(`http://localhost:3000/api/v1/user-mgmt/${currentUserId}/friends`, {
+      const response = await fetch(`${API_URL}/api/v1/user-mgmt/${currentUserId}/friends`, {
         credentials: 'include'
       });
       if (response.ok) {
@@ -78,7 +80,7 @@ export default function PrivateGameSetup() {
         setFriends(data.map((friend: any) => ({
           id: friend.id,
           username: friend.username,
-          avatarUrl: `http://localhost:3000/api/v1/user-mgmt/@${friend.username}/avatar`
+          avatarUrl: `${API_URL}/api/v1/user-mgmt/@${friend.username}/avatar`
         })));
       }
     } catch (error) {

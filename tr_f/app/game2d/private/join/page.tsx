@@ -38,8 +38,9 @@ export default function JoinPrivateGame() {
 
   const fetchCurrentUser = async () => {
     setLoadingUser(true);
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
     try {
-      const response = await fetch('http://localhost:3000/api/v1/user-mgmt/me', {
+      const response = await fetch(`${API_URL}/api/v1/user-mgmt/me`, {
         credentials: 'include'
       });
       if (response.ok) {
