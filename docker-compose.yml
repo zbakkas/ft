@@ -33,6 +33,11 @@ services:
     container_name: game_backend
     ports:
       - "7009:7009"
+    depends_on:
+      rabbit:
+        condition: service_healthy
+    env_file:
+      - ./transcendence/.env.shared
     environment:
       - NODE_ENV=production
     networks:

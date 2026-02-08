@@ -1,14 +1,14 @@
 import { resetBall, stopGameLoop } from './gameLogic';
-import { 
-  GameRoom, 
-  GameState, 
-  Player, 
-  gameRooms, 
-  CANVAS_WIDTH, 
-  CANVAS_HEIGHT, 
-  PADDLE_WIDTH, 
-  PADDLE_HEIGHT, 
-  BALL_SIZE, 
+import {
+  GameRoom,
+  GameState,
+  Player,
+  gameRooms,
+  CANVAS_WIDTH,
+  CANVAS_HEIGHT,
+  PADDLE_WIDTH,
+  PADDLE_HEIGHT,
+  BALL_SIZE,
   BALL_SPEED,
   c_WIN,
   PADDLE_SPEED,
@@ -16,13 +16,14 @@ import {
   COUNTDOWN_TIME
 } from './types';
 import { saveGameResult } from './database';
-
+import { FastifyInstance } from 'fastify';
+import rabbit from './rabbit';
 
 
 // Update game physics
- export const updateGameState = (room: GameRoom) => {
+export const updateGameState = (room: GameRoom ,fastify :FastifyInstance) => {
   const { gameState } = room;
-  
+
   if (!gameState.gameRunning) return;
 
   // Update ball position
@@ -30,8 +31,7 @@ import { saveGameResult } from './database';
   gameState.ballY += gameState.ballVelocityY;
 
   // Ball collision with top and bottom walls
-  if (gameState.ballY <= 0 || gameState.ballY >= CANVAS_HEIGHT - BALL_SIZE) 
-  {
+  if (gameState.ballY <= 0 || gameState.ballY >= CANVAS_HEIGHT - BALL_SIZE) {
     gameState.ballVelocityY = -gameState.ballVelocityY;
   }
 
@@ -75,15 +75,23 @@ import { saveGameResult } from './database';
     }
 
     // End game if any player reaches score of 5
-    if( player1.score >= c_WIN || player2.score >= c_WIN) 
-    {
+    if (player1.score >= c_WIN || player2.score >= c_WIN) {
       gameState.gameRunning = false;
       gameState.gameOver = true;
       stopGameLoop(room);
-      
+
       // Determine winner
       const winnerId = player1.score >= c_WIN ? player1.id : player2.id;
-      
+
+      if (room.tournamentId) {
+        fastify.rabbit.channel.publish('user.events', 'game.result', Buffer.from(JSON.stringify({
+          winnerId: winnerId,
+          gameMatchId: room.id,
+          tournamentId: room.tournamentId
+        })));
+        console.log(`Published game result to RabbitMQ for tournament ${room.tournamentId} with winner ${winnerId} and match ID ${room.id}`);
+      }
+
       // Save game result to database
       saveGameResult({
         gameId: gameState.gameId,
@@ -95,7 +103,7 @@ import { saveGameResult } from './database';
         gameMode: '1v1',
         duration: Date.now() - (room.startTime || Date.now())
       });
-      
+
       room.players.forEach(player => {
         player.socket.send(JSON.stringify({
           type: 'gameOver',
@@ -109,14 +117,14 @@ import { saveGameResult } from './database';
   }
 };
 
- // Broadcast game state to each player with their perspective
+// Broadcast game state to each player with their perspective
 
 export const broadcastGameState = (room: GameRoom) => {
   room.gameState.players.forEach(player => {
     try {
       // For player 2 (playerIndex 1), just reverse the ball's X position
-      const ballX = player.playerIndex === 1 
-        ? CANVAS_WIDTH - room.gameState.ballX 
+      const ballX = player.playerIndex === 1
+        ? CANVAS_WIDTH - room.gameState.ballX
         : room.gameState.ballX;
 
       const gameData = {
@@ -146,7 +154,7 @@ export const broadcastGameState = (room: GameRoom) => {
 
 export const updateGameState_2vs2 = (room: GameRoom) => {
   const { gameState } = room;
-  
+
   if (!gameState.gameRunning) return;
 
   // Update ball position
@@ -154,8 +162,7 @@ export const updateGameState_2vs2 = (room: GameRoom) => {
   gameState.ballY += gameState.ballVelocityY;
 
   // Ball collision with top and bottom walls
-  if (gameState.ballY <= 0 || gameState.ballY >= CANVAS_HEIGHT - BALL_SIZE) 
-  {
+  if (gameState.ballY <= 0 || gameState.ballY >= CANVAS_HEIGHT - BALL_SIZE) {
     gameState.ballVelocityY = -gameState.ballVelocityY;
   }
 
@@ -203,17 +210,16 @@ export const updateGameState_2vs2 = (room: GameRoom) => {
     }
 
     // End game if any player reaches score of 5
-    if( player1.score >= c_WIN || player2.score >= c_WIN) 
-    {
+    if (player1.score >= c_WIN || player2.score >= c_WIN) {
       gameState.gameRunning = false;
       gameState.gameOver = true;
       stopGameLoop(room);
-      
+
       // Determine winner for 2v2 (team 1: player1 & player1_1, team 2: player2 & player2_1)
-      const winnerId = player1.score >= c_WIN ? 'team1' : 'team2';
       const team1Players = `${player1.id},${player1_1.id}`;
       const team2Players = `${player2.id},${player2_1.id}`;
-      
+      const winnerId = player1.score >= c_WIN ? team1Players : team2Players;
+
       // Save game result to database
       saveGameResult({
         gameId: gameState.gameId,
@@ -225,7 +231,7 @@ export const updateGameState_2vs2 = (room: GameRoom) => {
         gameMode: '2v2',
         duration: Date.now() - (room.startTime || Date.now())
       });
-      
+
       room.players.forEach(player => {
         player.socket.send(JSON.stringify({
           type: 'gameOver',
@@ -246,7 +252,7 @@ export const broadcastGameState_2vs = (room: GameRoom) => {
     try {
       // For player 2 (playerIndex 2 and 3), just reverse the ball's X position
       const ballX = player.playerIndex === 3 || player.playerIndex === 2
-        ? CANVAS_WIDTH - room.gameState.ballX 
+        ? CANVAS_WIDTH - room.gameState.ballX
         : room.gameState.ballX;
 
       const gameData = {

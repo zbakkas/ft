@@ -418,8 +418,9 @@ export default function Game3D() {
         }
         return;
       }
+      
   
-      const wsUrl = process.env.NEXT_PUBLIC_WS_URL_3D || 'ws://localhost:3001/3d';
+      const wsUrl = process.env.NEXT_PUBLIC_WS_URL_3D || 'ws://localhost:3000/ws/game/ws/3d';
       console.log('Attempting to connect to:', wsUrl);
   
       setConnectionStatus('connecting');

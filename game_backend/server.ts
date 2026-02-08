@@ -21,6 +21,7 @@ import {
   invitedPlayersTournament
 } from './ts/types';
 import { getAllGameResults, getPlayerResults } from './ts/database';
+import rabbit from './ts/rabbit';
 
 
 const fastify = Fastify({ logger: true });
@@ -30,6 +31,8 @@ fastify.register(cors, {
   origin: true,
   credentials: true
 });
+
+fastify.register(rabbit);
 
 fastify.register(fastifyWebsocket);
 
@@ -235,11 +238,11 @@ fastify.register(async function (fastify) {
     
     // Default to 1v1 mode
     if( privatee === 'true' && roomId ) {
-      handlePlayerJoin(connection, playerId, true, roomId, player_two_Id, tournamentId);
+      handlePlayerJoin(connection, playerId, fastify, true, roomId, player_two_Id, tournamentId);
     }
     else
     {
-      handlePlayerJoin(connection, playerId);
+      handlePlayerJoin(connection, playerId, fastify);
     }
     
     setupMessageHandlers(connection, playerId, '1v1');
@@ -260,7 +263,7 @@ fastify.register(async function (fastify) {
     const {userId: playerId} = req.query as QueryGM;
     console.log(`Player ${playerId} connected to 3d mode`);
     
-    handlePlayerJoin_3d(connection, playerId);
+    handlePlayerJoin_3d(connection, playerId, fastify);
     
     setupMessageHandlers(connection, playerId, '3d');
   });
@@ -271,7 +274,7 @@ fastify.register(async function (fastify) {
     // const playerId = Math.random().toString(36).substring(7);
     console.log(`Player ${playerId} connected to 2v2 mode`);
     
-    handlePlayerJoin_2vs2(connection, playerId);
+    handlePlayerJoin_2vs2(connection, playerId, fastify);
     
     setupMessageHandlers(connection, playerId, '2v2');
   });

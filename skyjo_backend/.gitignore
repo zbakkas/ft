@@ -7,3 +7,6 @@
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
+
+# database
+*.db

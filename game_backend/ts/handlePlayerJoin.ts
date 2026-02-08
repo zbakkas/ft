@@ -2,6 +2,7 @@
 
 
 import { startGameLoop_3D } from '../server';
+import { FastifyInstance } from 'fastify';
 import { 
   GameRoom, 
   GameState, 
@@ -22,7 +23,7 @@ import { broadcastGameState, broadcastGameState_2vs, updateGameState, updateGame
 
 // Matchmaking system - automatically pair players
 //handlePlayerJoin(connection, playerId, true, roomId, playerinvitID, tournamentId);
-export const  handlePlayerJoin = (connection: any, playerId: string,privatee?:boolean, room_ID?:string,playerinvitID?:string, tournamentId?:string ) => {
+export const  handlePlayerJoin = (connection: any, playerId: string, fastify: FastifyInstance, privatee?:boolean, room_ID?:string,playerinvitID?:string, tournamentId?:string ) => {
   console.log(`Player ${playerId} looking for match...`);
   
 //  if (waitingPlayers.some(player => player.playerId === playerId)) {
@@ -96,7 +97,7 @@ export const  handlePlayerJoin = (connection: any, playerId: string,privatee?:bo
         const playerOne = { playerId: tournamentMatch.player_one_ID, socket: playerOneSocket };
         const playerTwo = { playerId: tournamentMatch.player_two_ID, socket: playerTwoSocket };
         
-        createGameForTwoPlayers(playerOne, playerTwo, true, room_ID);
+        createGameForTwoPlayers(playerOne, playerTwo, fastify, true, room_ID, tournamentId);
         
         // Remove from tournament list
         invitedPlayersTournament.splice(tournamentIndex, 1);
@@ -133,7 +134,7 @@ export const  handlePlayerJoin = (connection: any, playerId: string,privatee?:bo
     
       if( playerOne && playerTwo ) {
         console.log(`Both players connected for private room ${room_ID}. Starting game...`);
-        createGameForTwoPlayers(playerOne, playerTwo);
+        createGameForTwoPlayers(playerOne, playerTwo, fastify);
         //remove the players from the invitedPlayers list
         invitedPlayers.splice(invitedPlayerIndex,1);
       }
@@ -156,7 +157,7 @@ export const  handlePlayerJoin = (connection: any, playerId: string,privatee?:bo
   {
     // Match with waiting player
     const waitingPlayer = waitingPlayers.shift()!;
-    createGameForTwoPlayers(waitingPlayer, { playerId, socket: connection.socket });
+    createGameForTwoPlayers(waitingPlayer, { playerId, socket: connection.socket }, fastify);
     // console.log(" ❗️matching players... waitingPlayers.length: ", waitingPlayers.length);
     
   } 
@@ -178,7 +179,7 @@ export const  handlePlayerJoin = (connection: any, playerId: string,privatee?:bo
 
 
 ///3D version of the matchmaking system
-export const  handlePlayerJoin_3d = (connection: any, playerId: string) => {
+export const  handlePlayerJoin_3d = (connection: any, playerId: string, fastify: FastifyInstance) => {
   console.log(`Player ${playerId} looking for match...`);
   
 
@@ -193,7 +194,7 @@ export const  handlePlayerJoin_3d = (connection: any, playerId: string) => {
   {
     // Match with waiting player
     const waitingPlayer = waitingPlayers3d.shift()!;
-    createGameForTwoPlayers(waitingPlayer, { playerId, socket: connection.socket });
+    createGameForTwoPlayers(waitingPlayer, { playerId, socket: connection.socket }, fastify);
     
   } 
   else 
@@ -218,7 +219,7 @@ const generateGameId = (): string => {
 };
 
 // Create a new game for two matched players
-const createGameForTwoPlayers = (player1: { playerId: string; socket: any }, player2: { playerId: string; socket: any },privatee?:boolean,game_Id?:string) => {
+const createGameForTwoPlayers = (player1: { playerId: string; socket: any }, player2: { playerId: string; socket: any }, fastify: FastifyInstance, privatee?:boolean,game_Id?:string, tournamentId?:string) => {
   
   const gameId = (privatee && game_Id) ? game_Id : generateGameId();
 
@@ -226,6 +227,7 @@ const createGameForTwoPlayers = (player1: { playerId: string; socket: any }, pla
     id: gameId,
     gameState: createGameState(gameId),
     players: new Map(),
+    tournamentId: tournamentId
   };
 
   // Create player objects
@@ -303,7 +305,7 @@ const createGameForTwoPlayers = (player1: { playerId: string; socket: any }, pla
     room.gameState.gameRunning = true;
     room.startTime = Date.now();
     if( room.gameState.game2D ) {
-    startGameLoop(room);
+    startGameLoop(room, fastify);
     }
     else
     {
@@ -346,7 +348,7 @@ const createGameState = (gameId: string): GameState => ({
 
 
 // Start game loop for a room
-const startGameLoop = (room: GameRoom) => 
+const startGameLoop = (room: GameRoom, fastify: FastifyInstance) => 
 {
   if (room.gameLoop) {
     clearInterval(room.gameLoop);
@@ -362,7 +364,7 @@ const startGameLoop = (room: GameRoom) =>
     else
     {
       // console.log("🥎 1vs1 game loop running for room: ", room.id);
-      updateGameState(room);
+      updateGameState(room, fastify);
       broadcastGameState(room);
     }
   }, 1000 / 60); // 60 FPS
@@ -370,7 +372,7 @@ const startGameLoop = (room: GameRoom) =>
 
 
 
-export const  handlePlayerJoin_2vs2 = (connection: any, playerId: string) => {
+export const  handlePlayerJoin_2vs2 = (connection: any, playerId: string, fastify: FastifyInstance) => {
   console.log(`Player ${playerId} looking for match...`);
   
 
@@ -393,7 +395,7 @@ export const  handlePlayerJoin_2vs2 = (connection: any, playerId: string) => {
     console.log(" ❗️matching players... waitingPlayers2vs2.length: ", waitingPlayers2vs2.length);
     // Match with waiting player
     const waitingPlayer = waitingPlayers2vs2.shift()!;
-    createGameForFourPlayers(waitingPlayers2vs2[0], waitingPlayers2vs2[1],waitingPlayer,{ playerId, socket: connection.socket });
+    createGameForFourPlayers(waitingPlayers2vs2[0], waitingPlayers2vs2[1],waitingPlayer,{ playerId, socket: connection.socket }, fastify);
     //remove the players from the waiting list
     waitingPlayers2vs2.shift();
     waitingPlayers2vs2.shift();
@@ -418,7 +420,7 @@ export const  handlePlayerJoin_2vs2 = (connection: any, playerId: string) => {
 
 
 // Create a new game for four matched players
-const createGameForFourPlayers = (player1: { playerId: string; socket: any }, player2: { playerId: string; socket: any },player3: { playerId: string; socket: any }, player4: { playerId: string; socket: any }) => {
+const createGameForFourPlayers = (player1: { playerId: string; socket: any }, player2: { playerId: string; socket: any },player3: { playerId: string; socket: any }, player4: { playerId: string; socket: any }, fastify: FastifyInstance) => {
   const gameId = generateGameId();
   
   const room: GameRoom = {
@@ -548,7 +550,7 @@ const createGameForFourPlayers = (player1: { playerId: string; socket: any }, pl
     room.gameState.gameRunning = true;
     room.startTime = Date.now();
     if( room.gameState.game2D ) {
-    startGameLoop(room);
+    startGameLoop(room, fastify);
     }
     else
     {
