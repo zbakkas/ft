@@ -1,0 +1,22 @@
+import dotenv from "dotenv";
+
+dotenv.config({ path: [".env", "../.env.shared"] });
+
+export const environ = {
+  PORT: process.env.PORT || 3000,
+  INTERNAL_SECRET: process.env.INTERNAL_SECRET,
+  INTERNAL_HMAC_SECRET: process.env.INTERNAL_HMAC_SECRET,
+  CORS_ORIGIN: process.env.CORS_ORIGIN,
+  AUTH_SERVICE_URL: process.env.AUTH_SERVICE_URL,
+  USER_MGMT_SERVICE_URL: process.env.USER_MGMT_SERVICE_URL,
+  CHAT_SERVICE_URL: process.env.CHAT_SERVICE_URL,
+  CHAT_SERVICE_WS_URL: process.env.CHAT_SERVICE_WS_URL,
+  NOTIFICATION_SERVICE_URL: process.env.NOTIFICATION_SERVICE_URL,
+  NOTIFICATION_SERVICE_WS_URL: process.env.NOTIFICATION_SERVICE_WS_URL,
+  TOURNAMENT_SERVICE_URL: process.env.TOURNAMENT_SERVICE_URL,
+  LOG_DIR: process.env.LOG_DIR || "../logs",
+  SKYJO_SERVICE_URL: process.env.SKYJO_SERVICE_URL,
+  SKYJO_SERVICE_WS_URL: process.env.SKYJO_SERVICE_URL,
+  GAME_SERVICE_URL: process.env.GAME_SERVICE_URL,
+  GAME_SERVICE_WS_URL: process.env.GAME_SERVICE_WS_URL,
+};

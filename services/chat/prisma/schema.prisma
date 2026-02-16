@@ -1,0 +1,62 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum ConversationType {
+  direct
+  group
+}
+
+model Conversation {
+  id        String           @id @default(uuid(7))
+  name      String?
+  type      ConversationType @default(direct)
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
+  deletedAt DateTime?        @map("deleted_at")
+
+  messages Message[]
+  members  ChatMember[]
+
+  @@map("conversations")
+}
+
+model ChatMember {
+  id             String    @id @default(uuid(7))
+  userId         String
+  conversationId String
+  deletedAt      DateTime? @map("deleted_at")
+
+  conversation Conversation @relation(references: [id], fields: [conversationId])
+
+  @@unique([userId, conversationId, deletedAt])
+  @@map("chat_members")
+}
+
+enum MessageType {
+  text
+  image
+}
+
+model Message {
+  id             String      @id @default(uuid(7))
+  senderId       String
+  type           MessageType @default(text)
+  content        String
+  fileUrl        String?
+  conversationId String
+  createdAt      DateTime    @default(now()) @map("created_at")
+  deletedAt      DateTime?   @map("deleted_at")
+
+  conversation Conversation @relation(references: [id], fields: [conversationId])
+
+  @@index([conversationId])
+  @@index([conversationId, createdAt])
+  @@map("messages")
+}

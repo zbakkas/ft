@@ -1,64 +1,20 @@
 services:
-  # ==================== FRONTEND ====================
   frontend:
     build:
-      context: ./tr_f
+      context: ./services/frontend
       dockerfile: Dockerfile
     container_name: frontend
-    ports:
-      - "5000:5000"
-    environment:
-      - NODE_ENV=production
-      - NODE_OPTIONS=--max-old-space-size=2048
-      - API_URL=http://api_gateway:3000
-      - NEXT_PUBLIC_API_URL=http://localhost:3000
-    deploy:
-      resources:
-        limits:
-          memory: 3G
-        reservations:
-          memory: 1G
-    networks:
-      - transcendence-network
-    depends_on:
-      - game_backend
-      - skyjo_backend
-      - api_gateway
-
-  # ==================== GAME BACKENDS ====================
-  game_backend:
-    build:
-      context: ./game_backend
-      dockerfile: Dockerfile
-    container_name: game_backend
-    ports:
-      - "7009:7009"
-    depends_on:
-      rabbit:
-        condition: service_healthy
     env_file:
-      - ./transcendence/.env.shared
-    environment:
-      - NODE_ENV=production
+      - ./services/frontend/.env
     networks:
       - transcendence-network
-
-  skyjo_backend:
-    build:
-      context: ./skyjo_backend
-      dockerfile: Dockerfile
-    container_name: skyjo_backend
-    ports:
-      - "3007:3007"
-    environment:
-      - NODE_ENV=production
-    networks:
-      - transcendence-network
-
-  # ==================== TRANSCENDENCE SERVICES ====================
+    depends_on:
+      - api_gateway
+    volumes:
+      - logs-volume:/usr/src/logs
   api_gateway:
     build:
-      context: ./transcendence/services/api_gateway
+      context: ./services/api_gateway
       dockerfile: Dockerfile
     container_name: api_gateway
     depends_on:
@@ -67,18 +23,17 @@ services:
       - user-mgmt
       - chat
       - notification
+      - game_backend
+      - skyjo_backend
     env_file:
-      - ./transcendence/.env.shared
-    ports:
-      - "3000:3000"
+      - ./.env.shared
     networks:
       - transcendence-network
     volumes:
       - logs-volume:/usr/src/logs
-
   auth:
     build:
-      context: ./transcendence/services/auth
+      context: ./services/auth
       dockerfile: Dockerfile
     container_name: auth
     depends_on:
@@ -86,48 +41,55 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+    environment:
+      - NODE_ENV=production
     env_file:
-      - ./transcendence/.env.shared
-      - ./transcendence/services/auth/.env
+      - ./.env.shared
+      - ./services/auth/.env
     networks:
       - transcendence-network
     volumes:
       - logs-volume:/usr/src/logs
-
+      - auth-db:/usr/src/app/prisma
   tournament:
     build:
-      context: ./transcendence/services/tournament
+      context: ./services/tournament
       dockerfile: Dockerfile
     container_name: tournament
+    depends_on:
+      rabbit:
+        condition: service_healthy
     env_file:
-      - ./transcendence/services/tournament/.env
+      - ./.env.shared
+      - ./services/tournament/.env
     networks:
       - transcendence-network
     volumes:
       - logs-volume:/usr/src/logs
-
+      - tournament-db:/usr/src/app/prisma
   user-mgmt:
     build:
-      context: ./transcendence/services/user-mgmt
+      context: ./services/user-mgmt
     container_name: user-mgmt
     depends_on:
       rabbit:
         condition: service_healthy
     env_file:
-      - ./transcendence/.env.shared
-      - ./transcendence/services/user-mgmt/.env
+      - ./.env.shared
+      - ./services/user-mgmt/.env
     networks:
       - transcendence-network
     volumes:
       - logs-volume:/usr/src/logs
-
+      - user-mgmt-db:/usr/src/app/prisma
+      - uploads-data:/usr/src/app/uploads
   chat:
     build:
-      context: ./transcendence/services/chat
+      context: ./services/chat
     container_name: chat
     env_file:
-      - ./transcendence/.env.shared
-      - ./transcendence/services/chat/.env
+      - ./.env.shared
+      - ./services/chat/.env
     depends_on:
       rabbit:
         condition: service_healthy
@@ -135,10 +97,35 @@ services:
       - transcendence-network
     volumes:
       - logs-volume:/usr/src/logs
-
+      - chat-db:/usr/src/app/prisma
+  game_backend:
+    build:
+      context: ./services/game_backend
+    container_name: game_backend
+    depends_on:
+      rabbit:
+        condition: service_healthy
+    env_file:
+      - ./.env.shared
+    environment:
+      - NODE_ENV=production
+    networks:
+      - transcendence-network
+    volumes:
+      - game-backend-db:/app
+  skyjo_backend:
+    build:
+      context: ./services/skyjo_backend
+    container_name: skyjo_backend
+    environment:
+      - NODE_ENV=production
+    networks:
+      - transcendence-network
+    volumes:
+      - skyjo-backend-db:/app
   notification:
     build:
-      context: ./transcendence/services/notification
+      context: ./services/notification
     container_name: notification
     depends_on:
       rabbit:
@@ -146,13 +133,12 @@ services:
       user-mgmt:
         condition: service_started
     env_file:
-      - ./transcendence/.env.shared
-      - ./transcendence/services/notification/.env
+      - ./.env.shared
+      - ./services/notification/.env
     networks:
       - transcendence-network
     volumes:
       - logs-volume:/usr/src/logs
-
   redis:
     image: redis:7-alpine
     container_name: redis
@@ -160,7 +146,6 @@ services:
       - transcendence-network
     volumes:
       - redis-data:/data
-
   rabbit:
     image: rabbitmq:3-management
     container_name: rabbit
@@ -173,10 +158,77 @@ services:
       - transcendence-network
     volumes:
       - rabbit-data:/var/lib/rabbitmq
+  prometheus:
+    depends_on:
+      - cadvisor
+      - node_exporter
+    restart: unless-stopped 
+    container_name: prometheus
+    build: ./services/prometheus/.
+    networks:
+      - monitoring-network
+    volumes:
+      - prometheus-data:/prometheus
+  grafana:
+    depends_on:
+      - prometheus
+    restart: unless-stopped 
+    container_name: grafana
+    build: 
+      context: ./services/grafana/.
+      secrets:
+        - admin_password
+    networks:
+      - monitoring-network
+  node_exporter:
+    image: quay.io/prometheus/node-exporter:latest
+    container_name: node_exporter
+    command:
+      - '--path.rootfs=/host'
+    networks:
+      - monitoring-network
+    pid: host
+    restart: unless-stopped
+    volumes:
+      - '/:/host:ro,rslave'
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+    volumes:
+      - "/:/rootfs:ro"
+      - "/var/run:/var/run:ro"
+      - "/sys:/sys:ro"
+      - "/var/lib/docker/:/var/lib/docker:ro"
+      - "/dev/disk/:/dev/disk:ro"
+    devices:
+      - "/dev/kmsg:/dev/kmsg"
+    networks:
+      - monitoring-network
+    restart: unless-stopped
+  caddy:
+    image: caddy:2
+    container_name: caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "3000:3000"
+      - "9090:9090"
+      - "6969:6969"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      - transcendence-network
+      - monitoring-network
 
 networks:
   transcendence-network:
     name: transcendence-network
+    driver: bridge
+  monitoring-network:
+    name: monitoring-network
     driver: bridge
 
 volumes:
@@ -189,3 +241,34 @@ volumes:
   rabbit-data:
     name: rabbit-data
     driver: local
+  auth-db:
+    name: auth-db
+    driver: local
+  tournament-db:
+    name: tournament-db
+    driver: local
+  user-mgmt-db:
+    name: user-mgmt-db
+    driver: local
+  chat-db:
+    name: chat-db
+    driver: local
+  game-backend-db:
+    name: game-backend-db
+    driver: local
+  skyjo-backend-db:
+    name: skyjo-backend-db
+    driver: local
+  uploads-data:
+    name: uploads-data
+    driver: local
+  prometheus-data:
+    driver: local
+  caddy-data:
+    driver: local
+  caddy-config:
+    driver: local
+
+secrets:
+  admin_password:
+    file: ./secrets/admin_password

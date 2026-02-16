@@ -1,0 +1,9 @@
+filebeat.inputs:
+- type: log
+  enabled: true
+  paths:
+    - /var/log/fastify/*.log
+  json.keys_under_root: true
+
+output.logstash:
+  hosts: ["logstash:5044"]

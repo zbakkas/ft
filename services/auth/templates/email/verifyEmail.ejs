@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Email Verification</title>
+    <style>
+      body {
+        font-family: "Arial", sans-serif;
+        line-height: 1.6;
+        color: #ffffff;
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #000000;
+      }
+
+      .container {
+        background-color: #1a1a1a;
+        border-radius: 8px;
+        padding: 30px;
+        box-shadow: 0 4px 12px rgba(255, 255, 255, 0.1);
+      }
+
+      .header {
+        text-align: center;
+        padding: 20px 0;
+        border-bottom: 2px solid #333333;
+      }
+
+      .logo {
+        font-size: 24px;
+        font-weight: bold;
+        color: #ffffff;
+      }
+
+      .content {
+        padding: 20px 0;
+      }
+
+      .verification-code {
+        background: #2a2a2a;
+        padding: 15px;
+        text-align: center;
+        font-size: 12px;
+        font-weight: bold;
+        letter-spacing: 1px;
+        margin: 20px 0;
+        border-radius: 5px;
+        overflow-wrap: break-word;
+        border: 1px solid #444444;
+        color: #ffffff;
+      }
+
+      .footer {
+        text-align: center;
+        padding: 20px 0;
+        font-size: 12px;
+        color: #aaaaaa;
+        border-top: 2px solid #333333;
+      }
+
+      .button {
+        display: inline-block;
+        padding: 12px 24px;
+        background-color: #ffffff;
+        color: #000000;
+        text-decoration: none;
+        border-radius: 5px;
+        margin: 10px 0;
+        font-weight: bold;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      .button:hover {
+        background-color: #e0e0e0;
+        transform: translateY(-2px);
+      }
+
+      .centered {
+        text-align: center;
+      }
+
+      .expiration-notice {
+        font-style: italic;
+        margin-top: 20px;
+        color: #cccccc;
+      }
+
+      h2 {
+        color: #ffffff;
+        margin-bottom: 20px;
+      }
+
+      p {
+        color: #e0e0e0;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="container">
+      <div class="header">
+        <div class="logo">Transcendence</div>
+      </div>
+
+      <div class="content">
+        <h2 class="centered">Verify Your Email Address</h2>
+        <p>
+          Thank you for creating an account with Transcendence. To complete your
+          registration, please click on the following link:
+        </p>
+
+        <p class="centered">
+          <a href="<%= link %>" target="_blank" class="button">Verify Email</a>
+        </p>
+
+        <p class="centered">
+          <b>Button not working?</b> Copy and paste this link into your browser:
+        </p>
+
+        <div class="verification-code"><%= link %></div>
+
+        <p class="expiration-notice">
+          This link will expire in 15 minutes. If you didn't request this,
+          please ignore this email or contact support if you have questions.
+        </p>
+      </div>
+
+      <div class="footer">
+        <p>
+          © <%= (new Date()).getFullYear() %> Transcendence. All rights
+          reserved.
+        </p>
+        <p>
+          If you're having trouble with the button above, copy and paste the
+          verification code into the app.
+        </p>
+      </div>
+    </div>
+  </body>
+</html>

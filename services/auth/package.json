@@ -1,0 +1,44 @@
+{
+  "name": "transcendence",
+  "version": "1.0.0",
+  "description": "ping pong game",
+  "main": "./src/index.js",
+  "scripts": {
+    "start:dev": "bun --watch ./src/index.js",
+    "worker:email": "bun --watch run src/workers/email.worker.js",
+    "worker:registration": "bun --watch run src/workers/main.worker.js",
+    "start:workers": "run-p worker:*",
+    "start": "bun ./src/index.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@faker-js/faker": "^10.1.0",
+    "@fastify/cookie": "^11.0.2",
+    "@fastify/jwt": "^9.1.0",
+    "@fastify/rate-limit": "^10.3.0",
+    "@node-rs/bcrypt": "^1.10.7",
+    "@prisma/client": "^6.11.1",
+    "amqplib": "^0.10.9",
+    "axios": "^1.10.0",
+    "bullmq": "^5.56.5",
+    "dotenv": "^17.2.0",
+    "ejs": "^3.1.10",
+    "fastify": "^5.4.0",
+    "fastify-metrics": "^12.1.0",
+    "ioredis": "^5.6.1",
+    "nodemailer": "^7.0.5",
+    "pino-pretty": "^13.0.0",
+    "qrcode": "^1.5.4",
+    "speakeasy": "^2.0.0",
+    "tslib": "^2.8.1",
+    "unique-username-generator": "^1.4.0",
+    "uuid": "^11.1.0",
+    "zod": "^3.25.67"
+  },
+  "type": "module",
+  "devDependencies": {
+    "npm-run-all2": "^8.0.4",
+    "prisma": "^6.11.1"
+  }
+}

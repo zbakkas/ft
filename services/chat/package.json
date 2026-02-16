@@ -1,0 +1,25 @@
+{
+  "name": "transcendence",
+  "version": "1.0.0",
+  "description": "ping pong game",
+  "main": "./src/index.js",
+  "scripts": {
+    "start:dev": "bun --watch ./src/index.js",
+    "start": "bun ./src/index.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@fastify/websocket": "^11.2.0",
+    "@prisma/client": "^6.12.0",
+    "amqplib": "^0.10.9",
+    "dotenv": "^17.2.1",
+    "fastify": "^5.4.0",
+    "ioredis": "^5.6.1",
+    "pino-pretty": "^13.0.0"
+  },
+  "type": "module",
+  "devDependencies": {
+    "prisma": "^6.12.0"
+  }
+}

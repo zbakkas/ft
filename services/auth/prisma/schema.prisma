@@ -1,0 +1,128 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  active
+  suspend
+}
+
+model User {
+  id             String     @id @default(uuid(7))
+  email          String     @unique
+  passwordHashed String?    @map("password_hashed")
+  isVerified     Boolean    @default(false) @map("is_verified")
+  status         UserStatus @default(active)
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime   @updatedAt @map("updated_at")
+  deletedAt      DateTime?  @map("deleted_at")
+
+  OAuthLink         OAuthLink[]
+  TwoFactorAuth     TwoFactorAuth[]
+  Session           Session[]
+  VerificationToken VerificationToken[]
+  OutBox            OutBox[]
+
+  @@map("users")
+}
+
+enum OAuthProvider {
+  google
+  github
+  forty_two
+}
+
+model OAuthLink {
+  id         String        @id @default(uuid(7))
+  userId     String        @map("user_id")
+  provider   OAuthProvider
+  providerId String        @map("provider_id")
+  createdAt  DateTime      @default(now()) @map("created_at")
+  updatedAt  DateTime      @updatedAt @map("updated_at")
+
+  user User @relation(references: [id], fields: [userId])
+
+  @@unique([provider, providerId])
+  @@map("oauth_links")
+}
+
+enum TwoFactorAuthMethod {
+  totp
+  email
+}
+
+model TwoFactorAuth {
+  id          String              @id @default(uuid(7))
+  userId      String              @map("user_id")
+  method      TwoFactorAuthMethod @default(totp)
+  secret      String?
+  iv          Bytes?
+  tag         Bytes?
+  backupCodes Json?               @map("backup_codes")
+  isEnabled   Boolean             @default(false) @map("is_enabled")
+  isVerified  Boolean             @default(false) @map("is_verified")
+  createdAt   DateTime            @default(now()) @map("created_at")
+  updatedAt   DateTime            @updatedAt @map("updated_at")
+
+  user User @relation(references: [id], fields: [userId])
+
+  @@map("two_factor_auth")
+}
+
+enum VerificationTokenType {
+  email_verification
+  password_reset
+}
+
+model VerificationToken {
+  id        String                @id @default(uuid(7))
+  userId    String                @map("user_id")
+  token     String
+  type      VerificationTokenType
+  attempts  Int                   @default(0)
+  expiresAt DateTime              @map("expires_at")
+  createdAt DateTime              @default(now()) @map("created_at")
+  deletedAt DateTime?             @map("deleted_at")
+
+  user User @relation(references: [id], fields: [userId])
+
+  @@index([userId, type, deletedAt])
+  @@map("verification_token")
+}
+
+model Session {
+  id           String    @id @default(uuid(7))
+  userId       String    @map("user_id")
+  refreshToken String    @unique @map("refresh_token")
+  ipAddress    String?   @map("ip_address")
+  userAgent    String?   @map("user_agent")
+  expiresAt    DateTime  @map("expires_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  user User @relation(references: [id], fields: [userId])
+
+  @@index([userId])
+  @@index([refreshToken])
+  @@map("sessions")
+}
+
+model OutBox {
+  id        String   @id @default(uuid(7))
+  userId    String   @map("user_id")
+  eventType String   @map("event_type")
+  payload   Json
+  status    String   @default("pending")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(references: [id], fields: [userId])
+
+  @@map("out_box")
+}

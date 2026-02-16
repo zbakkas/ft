@@ -1,0 +1,71 @@
+generator client {
+    provider = "prisma-client-js"
+    output   = "../src/generated/prisma"
+}
+
+datasource db {
+    provider = "sqlite"
+    url      = env("DATABASE_URL")
+}
+
+enum TournamentStatus {
+    upcoming
+    ongoing
+    completed
+}
+
+model Tournament {
+    id                   String           @id @default(uuid(7))
+    name                 String
+    status               TournamentStatus @default(upcoming)
+    createdAt            DateTime         @default(now()) @map("created_at")
+    updatedAt            DateTime         @updatedAt @map("updated_at")
+    deletedAt            DateTime?        @map("deleted_at")
+    winnerId             String?          @map("winner_id")
+    numberOfParticipants Int              @default(4) @map("number_of_participants")
+    createdBy            String           @map("created_by")
+
+    participants Participant[] @relation(name: "TournamentParticipant")
+    matches      Match[]
+
+    @@map("tournaments")
+}
+
+model Participant {
+    id           String    @id @default(uuid(7))
+    userId       String    @map("user_id")
+    tournamentId String    @map("tournament_id")
+    registeredAt DateTime  @default(now()) @map("registered_at")
+    deletedAt    DateTime? @map("deleted_at")
+
+    tournament Tournament @relation(name: "TournamentParticipant", references: [id], fields: [tournamentId])
+
+    @@unique([userId, tournamentId, deletedAt])
+    @@map("participants")
+}
+
+enum MatchStatus {
+    scheduled
+    running
+    completed
+}
+
+model Match {
+    id           String      @id @default(uuid(7))
+    tournamentId String      @map("tournament_id")
+    playerOneId  String?     @map("player_one_id")
+    playerTwoId  String?     @map("player_two_id")
+    winnerId     String?     @map("winner_id")
+    round        Int
+    slot         Int
+    status       MatchStatus @default(scheduled)
+    gameMatchId  String?     @map("game_match_id")
+    playedAt     DateTime?   @map("played_at")
+    createdAt    DateTime    @default(now()) @map("created_at")
+    deletedAt    DateTime?   @map("deleted_at")
+
+    tournament Tournament @relation(references: [id], fields: [tournamentId])
+
+    @@index([tournamentId])
+    @@map("matches")
+}
