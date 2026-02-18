@@ -1,17 +1,23 @@
-import initSqlJs, { Database } from 'sql.js';
-import fs from 'fs';
-import path from 'path';
+import fs from "fs";
+import path from "path";
+import initSqlJs, { Database } from "sql.js";
 
 // Database instance
 let db: Database | null = null;
-const dbPath = path.join(__dirname, '..', 'game_results.db');
+const dataDir = path.join(process.cwd(), "data");
+const dbPath = path.join(dataDir, "game_results.db");
 
 // Initialize SQLite database
 const initDatabase = async (): Promise<Database> => {
   if (db) return db;
 
   const SQL = await initSqlJs();
-  
+
+  // Ensure data directory exists
+  if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
+  }
+
   // Try to load existing database
   if (fs.existsSync(dbPath)) {
     const buffer = fs.readFileSync(dbPath);
@@ -67,27 +73,30 @@ export interface GameResult {
 export const saveGameResult = async (result: GameResult): Promise<void> => {
   try {
     const database = await initDatabase();
-    
-    database.run(`
+
+    database.run(
+      `
       INSERT INTO game_results (
         game_id, player1_id, player1_score, player2_id, player2_score, 
         winner_id, game_mode, duration, timestamp
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
-    `, [
-      result.gameId,
-      result.player1Id,
-      result.player1Score,
-      result.player2Id,
-      result.player2Score,
-      result.winnerId,
-      result.gameMode,
-      result.duration || null
-    ]);
+    `,
+      [
+        result.gameId,
+        result.player1Id,
+        result.player1Score,
+        result.player2Id,
+        result.player2Score,
+        result.winnerId,
+        result.gameMode,
+        result.duration || null,
+      ],
+    );
 
     saveDatabase();
     console.log(`✅ Game result saved: ${result.gameId}`);
   } catch (error) {
-    console.error('❌ Error saving game result:', error);
+    console.error("❌ Error saving game result:", error);
   }
 };
 
@@ -95,8 +104,10 @@ export const saveGameResult = async (result: GameResult): Promise<void> => {
 export const getAllGameResults = async (): Promise<any[]> => {
   try {
     const database = await initDatabase();
-    const results = database.exec('SELECT * FROM game_results ORDER BY timestamp DESC');
-    
+    const results = database.exec(
+      "SELECT * FROM game_results ORDER BY timestamp DESC",
+    );
+
     if (results.length > 0) {
       const columns = results[0].columns;
       const values = results[0].values;
@@ -110,7 +121,7 @@ export const getAllGameResults = async (): Promise<any[]> => {
     }
     return [];
   } catch (error) {
-    console.error('❌ Error fetching game results:', error);
+    console.error("❌ Error fetching game results:", error);
     return [];
   }
 };
@@ -119,12 +130,15 @@ export const getAllGameResults = async (): Promise<any[]> => {
 export const getPlayerResults = async (playerId: string): Promise<any[]> => {
   try {
     const database = await initDatabase();
-    const results = database.exec(`
+    const results = database.exec(
+      `
       SELECT * FROM game_results 
-      WHERE player1_id = ? OR player2_id = ?
+      WHERE player1_id LIKE ? OR player2_id LIKE ?
       ORDER BY timestamp DESC
-    `, [playerId, playerId]);
-    
+    `,
+      [`%${playerId}%`, `%${playerId}%`],
+    );
+
     if (results.length > 0) {
       const columns = results[0].columns;
       const values = results[0].values;
@@ -138,7 +152,7 @@ export const getPlayerResults = async (playerId: string): Promise<any[]> => {
     }
     return [];
   } catch (error) {
-    console.error('❌ Error fetching player results:', error);
+    console.error("❌ Error fetching player results:", error);
     return [];
   }
 };

@@ -40,7 +40,7 @@ const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 400;
 const PADDLE_WIDTH = 10;
 const PADDLE_HEIGHT = 80;
-const BALL_SIZE = 15;
+const BALL_SIZE = 16;
 const COUNTDOWN_TIME = 5;
 
 export default function Game2vs2() {
@@ -545,7 +545,7 @@ export default function Game2vs2() {
 
               {/* Left Paddle (Team 1 - Cyan) */}
               <div
-                className="absolute bg-cyan-400 rounded-r-md shadow-[0_0_15px_rgba(34,211,238,0.6)]"
+                className="absolute bg-cyan-400 rounded-r-md shadow-[0_0_15px_rgba(34,211,238,0.6)] z-20"
                 style={{
                   left: 0,
                   top: P_me_paddleY,
@@ -557,7 +557,7 @@ export default function Game2vs2() {
 
               {/* Right Paddle (Team 2 - Purple) */}
               <div
-                className="absolute bg-purple-500 rounded-l-md shadow-[0_0_15px_rgba(168,85,247,0.6)]"
+                className="absolute bg-purple-500 rounded-l-md shadow-[0_0_15px_rgba(168,85,247,0.6)] z-20"
                 style={{
                   left: CANVAS_WIDTH - PADDLE_WIDTH,
                   top: P_2_paddleY,
@@ -572,8 +572,8 @@ export default function Game2vs2() {
                 <div
                   className="absolute rounded-full bg-white z-10"
                   style={{
-                    left: ballX - BALL_SIZE / 2,
-                    top: ballY - BALL_SIZE / 2,
+                    left: ballX,
+                    top: ballY,
                     width: BALL_SIZE,
                     height: BALL_SIZE,
                     boxShadow: '0 0 15px 2px rgba(255, 255, 255, 0.8), 0 0 30px 5px rgba(34, 211, 238, 0.4)' 

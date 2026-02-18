@@ -8,7 +8,7 @@ const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 400;
 const PADDLE_WIDTH = 10;
 const PADDLE_HEIGHT = 80;
-const BALL_SIZE = 15;
+const BALL_SIZE = 16;
 const COUNTDOWN_TIME = 5; 
 
 // --- Utility: Fetch User Data ---
@@ -299,6 +299,9 @@ export default function MultiplayerPongGame_2D() {
       gameOver={gameOver}
       myProfile={myProfile}
       opponentProfile={opponentProfile}
+      tournamentId={get_tournamentId}
+      isPrivate={get_privatee === 'true'}
+      inviterId={get_playerinvitID}
     />
   );
 }

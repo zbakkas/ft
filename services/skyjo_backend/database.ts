@@ -1,8 +1,13 @@
 import Database, { Database as DatabaseType } from 'better-sqlite3';
 import path from 'path';
+import fs from 'fs';
 
 // Initialize database
-const dbPath = path.join(__dirname, 'skyjo.db');
+const dataDir = path.join(process.cwd(), 'data');
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir, { recursive: true });
+}
+const dbPath = path.join(dataDir, 'skyjo.db');
 const db: DatabaseType = new Database(dbPath);
 
 // Enable foreign keys

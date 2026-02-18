@@ -21,7 +21,6 @@ done
 echo -e "Grafana is ready\n"
 
 grafana cli --homepath=/usr/share/grafana admin reset-admin-password $ADMIN_PASSWORD
-
 for file in "$DATASOURCES_DIR"/*.json; do
   if [[ -f "$file" ]]; then
     filename=$(basename -- "$file")

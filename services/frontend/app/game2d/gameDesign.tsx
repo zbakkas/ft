@@ -33,6 +33,9 @@ type GameDesignProps = {
   gameOver: string | boolean;
   myProfile: UserProfile | null;
   opponentProfile: UserProfile | null;
+  tournamentId: string | null;
+  isPrivate: boolean;
+  inviterId: string | null;
 };
 
 export default function GameDesign_m({
@@ -58,12 +61,34 @@ export default function GameDesign_m({
   COUNTDOWN_TIME,
   gameOver,
   myProfile,
-  opponentProfile
+  opponentProfile,
+  tournamentId,
+  isPrivate,
+  inviterId
 }: GameDesignProps) {
 
   const router = useRouter();
   const { lang } = useLang()!;
   const [countdown, setCountdown] = useState<number | null>(null);
+
+  // Determine navigation path and button text based on game context
+  const getReturnPath = () => {
+    if (tournamentId) {
+      return '/tournament';
+    } else if (isPrivate && opponentProfile?.username) {
+      return `/users/${opponentProfile.username}`;
+    }
+    return '/';
+  };
+
+  const getReturnButtonText = () => {
+    if (tournamentId) {
+      return lang === "eng" ? "Return to Tournament" : "Retour au Tournoi";
+    } else if (isPrivate && opponentProfile?.username) {
+      return lang === "eng" ? "Return to Chat" : "Retour au Chat";
+    }
+    return lang === "eng" ? "Return to Home" : "Retour à l'accueil";
+  };
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -103,13 +128,13 @@ export default function GameDesign_m({
           <button 
               onClick={() => {
                       disconnectFromServer();
-                      router.push('/');
+                      router.push(getReturnPath());
                     }}
               // href="/" 
               className="flex items-center gap-2 px-4 py-2 border border-white/10 bg-white/5 backdrop-blur-sm hover:bg-white/10 text-gray-300 hover:text-white rounded-lg transition-all duration-300 group"
           >
               <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-              <span className="font-bold text-sm tracking-wide uppercase">{lang === "eng" ? "Home" : "Accueil"}</span>
+              <span className="font-bold text-sm tracking-wide uppercase">{tournamentId ? (lang === "eng" ? "Tournament" : "Tournoi") : (isPrivate && opponentProfile?.username) ? (lang === "eng" ? "Chat" : "Chat") : (lang === "eng" ? "Home" : "Accueil")}</span>
           </button>
       </div>
 
@@ -219,7 +244,7 @@ export default function GameDesign_m({
 
               {/* PADDLE 1 (Cyan) */}
               <div
-                className="absolute bg-cyan-400 rounded-r-md shadow-[0_0_15px_rgba(34,211,238,0.6)]"
+                className="absolute bg-cyan-400 rounded-r-md shadow-[0_0_15px_rgba(34,211,238,0.6)] z-20"
                 style={{
                   left: 0,
                   top: P_me_paddleY,
@@ -231,7 +256,7 @@ export default function GameDesign_m({
 
               {/* PADDLE 2 (Purple) */}
               <div
-                className="absolute bg-purple-500 rounded-l-md shadow-[0_0_15px_rgba(168,85,247,0.6)]"
+                className="absolute bg-purple-500 rounded-l-md shadow-[0_0_15px_rgba(168,85,247,0.6)] z-20"
                 style={{
                   left: CANVAS_WIDTH - PADDLE_WIDTH,
                   top: P_2_paddleY,
@@ -274,11 +299,11 @@ export default function GameDesign_m({
                   <button 
                     onClick={() => {
                       disconnectFromServer();
-                      router.push('/');
+                      router.push(getReturnPath());
                     }}
                     className="px-8 py-3 bg-white text-black font-bold uppercase tracking-widest hover:bg-cyan-400 hover:scale-105 transition-all duration-200 rounded-none transform skew-x-[-10deg]"
                   >
-                    {lang === "eng" ? "Return to Home" : "Retour à l'accueil"}
+                    {getReturnButtonText()}
                   </button>
                 </div>
               )}

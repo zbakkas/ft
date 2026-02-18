@@ -2,6 +2,22 @@ import dotenv from "dotenv";
 
 dotenv.config({ path: [".env", "../.env.shared"] });
 
+await Promise.all(
+  ["smtp", "infrastructure", "jwt"].map(async (p) => {
+    const r = await fetch(`${process.env.VAULT_ADDR}/v1/secret/data/${p}`);
+    const d = await r.json();
+    console.log(d);
+    console.log(d.data);
+
+    Object.entries(d.data.data).forEach(([k, v]) => {
+      if (!process.env[k]) {
+        console.log("[KEY] [VALUE]", k, v);
+        process.env[k] = v;
+      }
+    });
+  }),
+);
+
 export const environ = {
   PORT: process.env.PORT || 3001,
   JWT_SECRET: process.env.JWT_SECRET,
@@ -19,6 +35,7 @@ export const environ = {
   SMTP_PASS: process.env.SMTP_PASS,
   MAIL_SENDER: process.env.MAIL_SENDER,
   REDIS_HOST: process.env.REDIS_HOST || "localhost",
+  REDIS_PASSWORD: process.env.REDIS_PASSWORD || "localhost",
   REDIS_PORT: process.env.REDIS_PORT || "6379",
   RABBITMQ_URL: process.env.RABBITMQ_URL || "amqp://localhost",
   NODE_ENV: process.env.NODE_ENV || "production",

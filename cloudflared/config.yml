@@ -1,0 +1,8 @@
+tunnel: transcendence
+
+ingress:
+  - hostname: hayyoun.me
+    service: http://frontend:5000
+  - hostname: api.hayyoun.me
+    service: http://api_gateway:3000
+  - service: http_status:404

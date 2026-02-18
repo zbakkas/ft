@@ -21,9 +21,11 @@ const registerUser = (fastify) => async (request, reply) => {
       path: err.path?.join(".") || err.keys?.join("."),
       message: err.message,
     }));
-    return sendError(reply, 400, "Bad request", { errors: errors });
+    return sendError(reply, 400, errors[0]?.message || "Validation failed", { errors: errors });
   }
   let { email, password, username } = request.body;
+  email = email?.trim();
+  username = username?.trim();
   const [userExists, usernameAvailable] = await Promise.all([
     authService.isUserExists(email),
     postInternal(
@@ -41,7 +43,7 @@ const registerUser = (fastify) => async (request, reply) => {
     return sendError(reply, 409, "Username already taken!");
   }
 
-  const { sessionToken } = await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx) => {
     const createdUser = await tx.user.create({
       data: {
         email,
@@ -51,13 +53,6 @@ const registerUser = (fastify) => async (request, reply) => {
         id: true,
       },
     });
-    const sessionToken = fastify.jwt.sign(
-      {
-        userId: createdUser.id,
-        type: "email_verification",
-      },
-      { expiresIn: "15m" },
-    );
     await tx.outBox.create({
       data: {
         eventType: "UserRegistered",
@@ -65,18 +60,15 @@ const registerUser = (fastify) => async (request, reply) => {
         payload: {
           username,
           email,
-          sessionToken,
           headers: requestToHeaders(request),
         },
       },
     });
-    return { sessionToken };
   });
   return sendSuccess(
     reply,
     201,
     "Registration successful. Verification email will be sent shortly.",
-    { sessionToken },
   );
 };
 
@@ -92,9 +84,10 @@ const loginUser = (fastify) => async (request, reply) => {
       path: err.path?.join(".") || err.keys?.join("."),
       message: err.message,
     }));
-    return sendError(reply, 400, "Bad request", { errors: errors });
+    return sendError(reply, 400, errors[0]?.message || "Validation failed", { errors: errors });
   }
   let { email, password } = request.body;
+  email = email?.trim();
   const user = await prisma.user.findFirst({
     where: {
       email,

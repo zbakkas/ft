@@ -9,7 +9,7 @@ export const BALL_SIZE = 16;
 export const BALL_SPEED = 8;
 export const c_WIN = 7;
 export const COUNTDOWN_TIME = 5;
-export const PADDLE_SPEED = 7;
+export const PADDLE_SPEED = 15;
 
 // Interfaces
 export interface Player {
@@ -70,6 +70,7 @@ export interface GameRoom {
 
 // Global state - you can import and use these anywhere
 export const gameRooms = new Map<string, GameRoom>();
+export const playersInGame = new Set<string>();
 export const waitingPlayers: Array<{ playerId: string; socket: any }> = [];
 export const waitingPlayers2vs2: Array<{ playerId: string; socket: any }> = [];
 export const waitingPlayers3d: Array<{ playerId: string; socket: any }> = [];

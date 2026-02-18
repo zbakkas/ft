@@ -11,17 +11,17 @@ let running_worker;
 
 const eventHandler = {
   UserRegistered: async (payload, userId) => {
-    const { username, email, sessionToken, headers } = payload;
+    const { username, email, headers } = payload;
     const otp = await otpServices.createOTP(
       prisma,
       userId,
-      "email_verification"
+      "email_verification",
     );
     await getQueue(QueueType.EMAIL).add("send-verification", {
       email,
       template: "verifyEmail",
       context: {
-        link: `${environ.CLIENT_URL}/api/v1/auth/otp/verify?sessionToken=${sessionToken}&otp=${otp.token}`,
+        link: `${environ.CLIENT_URL}/verify-email?token=${otp.token}`,
       },
     });
     const res = await postInternal(
@@ -30,22 +30,22 @@ const eventHandler = {
         userId,
         username,
       },
-      headers
+      headers,
     );
     if (!res.ok) throw new Error("Internal server error");
   },
   ResendVerification: async (payload, userId) => {
-    const { email, sessionToken } = payload;
+    const { email } = payload;
     const otp = await otpServices.createOTP(
       prisma,
       userId,
-      "email_verification"
+      "email_verification",
     );
     await getQueue(QueueType.EMAIL).add("send-verification", {
       email,
       template: "verifyEmail",
       context: {
-        link: `${environ.CLIENT_URL}/api/v1/auth/otp/verify?sessionToken=${sessionToken}&otp=${otp.token}`,
+        link: `${environ.CLIENT_URL}/verify-email?token=${otp.token}`,
       },
     });
   },
@@ -75,7 +75,7 @@ const mainWorker = () =>
     {
       connection: redis,
       concurrency: 5,
-    }
+    },
   );
 
 setInterval(async () => {

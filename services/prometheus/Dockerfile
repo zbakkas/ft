@@ -1,5 +1,7 @@
 FROM prom/prometheus:latest
 
+WORKDIR /config/prometheus
+
 COPY ./config/prometheus.yml /config/prometheus/.
 
 COPY ./config/rules.yml /config/prometheus/.

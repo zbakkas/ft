@@ -4,8 +4,6 @@ dotenv.config({ path: [".env", "../.env.shared"] });
 
 export const environ = {
   PORT: process.env.PORT || 3003,
-  REDIS_HOST: process.env.REDIS_HOST,
-  REDIS_PORT: process.env.REDIS_PORT,
   INTERNAL_HMAC_SECRET: process.env.INTERNAL_HMAC_SECRET,
   USER_MGMT_SERVICE_URL: process.env.USER_MGMT_SERVICE_URL,
   LOG_DIR: process.env.LOG_DIR || "../logs",

@@ -1,15 +1,15 @@
 "use client";
 
-import { Dispatch, ReactElement, SetStateAction, useState } from "react";
+import { getGatewayUrl } from "@/lib/gateway";
 import { Transition } from "@headlessui/react";
 import { LogIn } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { Dispatch, ReactElement, SetStateAction, useState } from "react";
 import { useAvatar } from "../context/AvatarContext";
-import { getGatewayUrl } from "@/lib/gateway";
 
 export default function LoginButton() : ReactElement<any, any> {
   const [open, setOpen] : [boolean, Dispatch<SetStateAction<boolean>>] = useState(false);
-  const [isRegister, setIsRegister] : [Boolean, Dispatch<SetStateAction<boolean>>] = useState(false);
+  const [mode, setMode] : ["login" | "register" | "forgot", Dispatch<SetStateAction<"login" | "register" | "forgot">>] = useState("login");
   const [message, setmessage] : [string, Dispatch<SetStateAction<string>>] = useState("");
   const [email, setEmail] : [string, Dispatch<SetStateAction<string>>] = useState("");
   const [username, setUsername] : [string, Dispatch<SetStateAction<string>>] = useState("");
@@ -21,13 +21,17 @@ export default function LoginButton() : ReactElement<any, any> {
   const handleSubmit = async (e: React.FormEvent) : Promise<undefined> => {
     e.preventDefault();
 
-    const payload = isRegister
+    const payload = mode === "register"
       ? { email, username, password, confirmPassword }
-      : { email, password };
+      : mode === "forgot"
+        ? { email }
+        : { email, password };
 
-    const endpoint = isRegister
+    const endpoint = mode === "register"
       ? getGatewayUrl("/api/v1/auth/register")
-      : getGatewayUrl("/api/v1/auth/login");
+      : mode === "forgot"
+        ? getGatewayUrl("/api/v1/auth/forget-password")
+        : getGatewayUrl("/api/v1/auth/login");
 
     const res = await fetch(endpoint, {
       method: "POST",
@@ -37,7 +41,7 @@ export default function LoginButton() : ReactElement<any, any> {
     });
 
     let data;
-    if (isRegister || !res.ok) {
+    if (mode !== "login" || !res.ok) {
       data = await res.json();
     }
     
@@ -46,12 +50,14 @@ export default function LoginButton() : ReactElement<any, any> {
       return;
     }
 
-    if (!isRegister) {
+    if (mode === "login") {
       navigate.push('/');
       setVersion(Date.now());
-    } else {
+    } else if (mode === "register") {
       setmessage(data?.code || "An error occurred. Please try again.");
-      setIsRegister(false);
+      setMode("login");
+    } else {
+      setmessage(data?.code || "If the email exists, a reset link was sent.");
     }
   };
 
@@ -60,7 +66,8 @@ export default function LoginButton() : ReactElement<any, any> {
       {/* Login Button */}
       <button
         onClick={() => {
-          setIsRegister(false); // default to login mode
+          setMode("login");
+          setmessage("");
           setOpen(true);
         }}
       >
@@ -97,7 +104,7 @@ export default function LoginButton() : ReactElement<any, any> {
             >
               {/* Animated form content */}
               <Transition
-                key={isRegister ? "register" : "login"}
+                key={mode}
                 appear
                 show
                 enter="transition-all duration-300 transform"
@@ -109,7 +116,7 @@ export default function LoginButton() : ReactElement<any, any> {
               >
                 <div>
                   <h2 className="text-xl text-black font-bold mb-4">
-                    {isRegister ? "Create Account" : "Login"}
+                    {mode === "register" ? "Create Account" : mode === "forgot" ? "Reset Password" : "Login"}
                   </h2>
                   {message && (
                     <div className="w-full border-2 border-gray-500 rounded-lg px-3 py-2 bg-gray-300 text-black my-4">
@@ -127,7 +134,7 @@ export default function LoginButton() : ReactElement<any, any> {
                     />
 
                     {/* Username (register only) */}
-                    {isRegister && (
+                    {mode === "register" && (
                       <input
                         type="text"
                         placeholder="Username"
@@ -138,16 +145,18 @@ export default function LoginButton() : ReactElement<any, any> {
                     )}
 
                     {/* Password */}
-                    <input
-                      type="password"
-                      placeholder="Password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black"
-                    />
+                    {mode !== "forgot" && (
+                      <input
+                        type="password"
+                        placeholder="Password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black"
+                      />
+                    )}
 
                     {/* Confirm password (register only) */}
-                    {isRegister && (
+                    {mode === "register" && (
                       <input
                         type="password"
                         placeholder="Confirm Password"
@@ -161,24 +170,53 @@ export default function LoginButton() : ReactElement<any, any> {
                       type="submit"
                       className="w-full hover:bg-gray-800 text-white rounded-lg px-3 py-2 bg-black transition-colors"
                     >
-                      {isRegister ? "Sign Up" : "Sign In"}
+                      {mode === "register" ? "Sign Up" : mode === "forgot" ? "Send Reset Link" : "Sign In"}
                     </button>
                   </form>
 
+                  {mode === "login" && (
+                    <p className="text-sm text-center text-gray-600 mt-4">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMode("forgot");
+                          setmessage("");
+                        }}
+                        className="text-blue-600 hover:underline"
+                      >
+                        Forgot password?
+                      </button>
+                    </p>
+                  )}
+
                   {/* Mode switch */}
                   <p className="text-sm text-center text-gray-600 mt-4">
-                    {isRegister ? (
+                    {mode === "register" ? (
                       <>
                         Already have an account?{" "}
                         <button
                           type="button"
                           onClick={() => {
-                            setIsRegister(false);
+                            setMode("login");
                             setmessage("");
                           }}
                           className="text-blue-600 hover:underline"
                         >
                           Login
+                        </button>
+                      </>
+                    ) : mode === "forgot" ? (
+                      <>
+                        Remembered your password?{" "}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMode("login");
+                            setmessage("");
+                          }}
+                          className="text-blue-600 hover:underline"
+                        >
+                          Back to Login
                         </button>
                       </>
                     ) : (
@@ -187,7 +225,7 @@ export default function LoginButton() : ReactElement<any, any> {
                         <button
                           type="button"
                           onClick={() => {
-                            setIsRegister(true);
+                            setMode("register");
                             setmessage("");
                           }}
                           className="text-blue-600 hover:underline"

@@ -4,11 +4,14 @@ services:
       context: ./services/frontend
       dockerfile: Dockerfile
     container_name: frontend
+    environment:
+      - VAULT_ADDR=http://vault-agent-frontend:8100
     env_file:
       - ./services/frontend/.env
     networks:
       - transcendence-network
     depends_on:
+      - vault-agent-frontend
       - api_gateway
     volumes:
       - logs-volume:/usr/src/logs
@@ -17,7 +20,10 @@ services:
       context: ./services/api_gateway
       dockerfile: Dockerfile
     container_name: api_gateway
+    environment:
+      - VAULT_ADDR=http://vault-agent-api-gateway:8100
     depends_on:
+      - vault-agent-api-gateway
       - auth
       - tournament
       - user-mgmt
@@ -37,12 +43,15 @@ services:
       dockerfile: Dockerfile
     container_name: auth
     depends_on:
+      vault-agent-auth:
+        condition: service_started
       rabbit:
         condition: service_healthy
       redis:
         condition: service_started
     environment:
       - NODE_ENV=production
+      - VAULT_ADDR=http://vault-agent-auth:8100
     env_file:
       - ./.env.shared
       - ./services/auth/.env
@@ -57,8 +66,12 @@ services:
       dockerfile: Dockerfile
     container_name: tournament
     depends_on:
+      vault-agent-tournament:
+        condition: service_started
       rabbit:
         condition: service_healthy
+    environment:
+      - VAULT_ADDR=http://vault-agent-tournament:8100
     env_file:
       - ./.env.shared
       - ./services/tournament/.env
@@ -72,8 +85,12 @@ services:
       context: ./services/user-mgmt
     container_name: user-mgmt
     depends_on:
+      vault-agent-user-mgmt:
+        condition: service_started
       rabbit:
         condition: service_healthy
+    environment:
+      - VAULT_ADDR=http://vault-agent-user-mgmt:8100
     env_file:
       - ./.env.shared
       - ./services/user-mgmt/.env
@@ -87,10 +104,14 @@ services:
     build:
       context: ./services/chat
     container_name: chat
+    environment:
+      - VAULT_ADDR=http://vault-agent-chat:8100
     env_file:
       - ./.env.shared
       - ./services/chat/.env
     depends_on:
+      vault-agent-chat:
+        condition: service_started
       rabbit:
         condition: service_healthy
     networks:
@@ -103,35 +124,45 @@ services:
       context: ./services/game_backend
     container_name: game_backend
     depends_on:
+      vault-agent-game:
+        condition: service_started
       rabbit:
         condition: service_healthy
     env_file:
       - ./.env.shared
     environment:
       - NODE_ENV=production
+      - VAULT_ADDR=http://vault-agent-game:8100
     networks:
       - transcendence-network
     volumes:
-      - game-backend-db:/app
+      - game-backend-db:/app/data
   skyjo_backend:
     build:
       context: ./services/skyjo_backend
     container_name: skyjo_backend
+    depends_on:
+      - vault-agent-skyjo
     environment:
       - NODE_ENV=production
+      - VAULT_ADDR=http://vault-agent-skyjo:8100
     networks:
       - transcendence-network
     volumes:
-      - skyjo-backend-db:/app
+      - skyjo-backend-db:/app/data
   notification:
     build:
       context: ./services/notification
     container_name: notification
     depends_on:
+      vault-agent-notification:
+        condition: service_started
       rabbit:
         condition: service_healthy
       user-mgmt:
         condition: service_started
+    environment:
+      - VAULT_ADDR=http://vault-agent-notification:8100
     env_file:
       - ./.env.shared
       - ./services/notification/.env
@@ -152,12 +183,199 @@ services:
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "status"]
       interval: 5s
-      timeout: 10s
-      retries: 10
+      timeout: 5s
+      retries: 50
     networks:
       - transcendence-network
     volumes:
       - rabbit-data:/var/lib/rabbitmq
+
+  vault:
+    build:
+      context: .
+      dockerfile: ./services/vault/Dockerfile
+    container_name: ft_transcendence_vault
+    environment:
+      VAULT_DEV_LISTEN_ADDRESS: ${VAULT_DEV_LISTEN_ADDRESS:-0.0.0.0:8200}
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - vault-logs:/vault/logs
+      - ./services/security/approle:/scripts/approle
+    secrets:
+      - vault_root_token
+      - vault_users_creds
+      - database_creds
+      - smtp_creds
+      - redis_creds
+      - services_urls
+    networks:
+      - transcendence-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:8200/v1/sys/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  vault-agent-frontend:
+    image: hashicorp/vault:1.15.4
+    container_name: vault-agent-frontend
+    command: agent -config=/etc/vault/agent.hcl
+    environment:
+      - VAULT_ADDR=http://vault:8200
+    volumes:
+      - ./services/security/vault-agent.hcl:/etc/vault/agent.hcl:ro
+      - ./services/security/approle:/etc/vault/approle
+    depends_on:
+      vault:
+        condition: service_healthy
+    networks:
+      - transcendence-network
+    restart: unless-stopped
+
+  vault-agent-api-gateway:
+    image: hashicorp/vault:1.15.4
+    container_name: vault-agent-api-gateway
+    command: agent -config=/etc/vault/agent.hcl
+    environment:
+      - VAULT_ADDR=http://vault:8200
+    volumes:
+      - ./services/security/vault-agent.hcl:/etc/vault/agent.hcl:ro
+      - ./services/security/approle:/etc/vault/approle
+    depends_on:
+      vault:
+        condition: service_healthy
+    networks:
+      - transcendence-network
+    restart: unless-stopped
+
+  vault-agent-auth:
+    image: hashicorp/vault:1.15.4
+    container_name: vault-agent-auth
+    command: agent -config=/etc/vault/agent.hcl
+    environment:
+      - VAULT_ADDR=http://vault:8200
+    volumes:
+      - ./services/security/vault-agent.hcl:/etc/vault/agent.hcl:ro
+      - ./services/security/approle:/etc/vault/approle
+    depends_on:
+      vault:
+        condition: service_healthy
+    networks:
+      - transcendence-network
+    restart: unless-stopped
+
+  vault-agent-tournament:
+    image: hashicorp/vault:1.15.4
+    container_name: vault-agent-tournament
+    command: agent -config=/etc/vault/agent.hcl
+    environment:
+      - VAULT_ADDR=http://vault:8200
+    volumes:
+      - ./services/security/vault-agent.hcl:/etc/vault/agent.hcl:ro
+      - ./services/security/approle:/etc/vault/approle
+    depends_on:
+      vault:
+        condition: service_healthy
+    networks:
+      - transcendence-network
+    restart: unless-stopped
+
+  vault-agent-user-mgmt:
+    image: hashicorp/vault:1.15.4
+    container_name: vault-agent-user-mgmt
+    command: agent -config=/etc/vault/agent.hcl
+    environment:
+      - VAULT_ADDR=http://vault:8200
+    volumes:
+      - ./services/security/vault-agent.hcl:/etc/vault/agent.hcl:ro
+      - ./services/security/approle:/etc/vault/approle
+    depends_on:
+      vault:
+        condition: service_healthy
+    networks:
+      - transcendence-network
+    restart: unless-stopped
+
+  vault-agent-chat:
+    image: hashicorp/vault:1.15.4
+    container_name: vault-agent-chat
+    command: agent -config=/etc/vault/agent.hcl
+    environment:
+      - VAULT_ADDR=http://vault:8200
+    volumes:
+      - ./services/security/vault-agent.hcl:/etc/vault/agent.hcl:ro
+      - ./services/security/approle:/etc/vault/approle
+    depends_on:
+      vault:
+        condition: service_healthy
+    networks:
+      - transcendence-network
+    restart: unless-stopped
+
+  vault-agent-notification:
+    image: hashicorp/vault:1.15.4
+    container_name: vault-agent-notification
+    command: agent -config=/etc/vault/agent.hcl
+    environment:
+      - VAULT_ADDR=http://vault:8200
+    volumes:
+      - ./services/security/vault-agent.hcl:/etc/vault/agent.hcl:ro
+      - ./services/security/approle:/etc/vault/approle
+    depends_on:
+      vault:
+        condition: service_healthy
+    networks:
+      - transcendence-network
+    restart: unless-stopped
+
+  vault-agent-game:
+    image: hashicorp/vault:1.15.4
+    container_name: vault-agent-game
+    command: agent -config=/etc/vault/agent.hcl
+    environment:
+      - VAULT_ADDR=http://vault:8200
+    volumes:
+      - ./services/security/vault-agent.hcl:/etc/vault/agent.hcl:ro
+      - ./services/security/approle:/etc/vault/approle
+    depends_on:
+      vault:
+        condition: service_healthy
+    networks:
+      - transcendence-network
+    restart: unless-stopped
+
+  vault-agent-skyjo:
+    image: hashicorp/vault:1.15.4
+    container_name: vault-agent-skyjo
+    command: agent -config=/etc/vault/agent.hcl
+    environment:
+      - VAULT_ADDR=http://vault:8200
+    volumes:
+      - ./services/security/vault-agent.hcl:/etc/vault/agent.hcl:ro
+      - ./services/security/approle:/etc/vault/approle
+    depends_on:
+      vault:
+        condition: service_healthy
+    networks:
+      - transcendence-network
+    restart: unless-stopped
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    command: tunnel --no-autoupdate --config /etc/cloudflared/config.yml run --token-file=/run/secrets/tunnel_token
+    volumes:
+      - ./cloudflared/config.yml:/etc/cloudflared/config.yml:ro
+    secrets:
+      - tunnel_token
+    depends_on:
+      - frontend
+      - api_gateway
+    networks:
+      - transcendence-network
+    restart: unless-stopped
+
   prometheus:
     depends_on:
       - cadvisor
@@ -205,6 +423,32 @@ services:
     networks:
       - monitoring-network
     restart: unless-stopped
+  waf:
+    build:
+      context: ./services/security/waf
+      dockerfile: Dockerfile
+    container_name: ft_transcendence_waf
+    environment:
+      - MODSEC_RESP_BODY_ACCESS=Off
+      - MODSEC_AUDIT_LOG=/var/log/modsec/modsec_audit.log
+    volumes:
+      - ./services/security/waf/logs:/var/log/nginx
+      - ./services/security/waf/logs:/var/log/modsec
+    networks:
+      - transcendence-network
+      - monitoring-network
+      - elk-network
+    depends_on:
+      - frontend
+      - api_gateway
+      - grafana
+      - prometheus
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/waf/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
   caddy:
     image: caddy:2
     container_name: caddy
@@ -213,8 +457,10 @@ services:
       - "80:80"
       - "443:443"
       - "3000:3000"
+      - "5601:5601"
       - "9090:9090"
       - "6969:6969"
+      - "8200:8200"
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
@@ -222,6 +468,85 @@ services:
     networks:
       - transcendence-network
       - monitoring-network
+      - elk-network
+    depends_on:
+      - waf
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.17.0
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.http.ssl.enabled=false
+      - xpack.security.enabled=true
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    healthcheck:
+      test: curl -s http://localhost:9200 >/dev/null || exit 1
+      interval: 5s
+      timeout: 5s
+      retries: 50
+    ulimits:
+      memlock: { soft: -1, hard: -1 }
+    volumes:
+      - es-data:/usr/share/elasticsearch/data
+    networks:
+      - elk-network
+  
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.17.0
+    container_name: logstash
+    environment:
+      - "LS_JAVA_OPTS=-Xms512m -Xmx512m"
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+    volumes:
+      - ./elk/logstash/pipeline:/usr/share/logstash/pipeline:ro
+      - ./elk/logstash/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
+    networks:
+      - elk-network
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+  
+  setupelastic:
+    container_name: setupelastic
+    image: curlimages/curl:latest
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    restart: "no"
+    entrypoint: 'curl -X POST http://elasticsearch:9200/_security/user/${KIBANA_USERNAME}/_password -H "Content-Type: application/json" -d "{\"password\": \"${KIBANA_PASSWORD}\"}" -u ${ELASTIC_USERNAME}:${ELASTIC_PASSWORD}'
+    networks:
+      - elk-network
+  
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.17.0
+    container_name: kibana
+    volumes:
+      - ./elk/kibana/kibana.yml:/usr/share/kibana/config/kibana.yml
+    environment:
+      - KIBANA_USERNAME=${KIBANA_USERNAME}
+      - KIBANA_PASSWORD=${KIBANA_PASSWORD}
+      - KIBANA_ENCRYPTION_KEY=${KIBANA_ENCRYPTION_KEY}
+      - KIBANA_OBJ_ENCRYPTION_KEY=${KIBANA_OBJ_ENCRYPTION_KEY}
+    networks:
+      - elk-network
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.17.0
+    container_name: filebeat
+    user: root
+    volumes:
+      - logs-volume:/var/log/fastify:ro
+      - ./elk/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+    networks:
+      - elk-network
+    depends_on: 
+      - logstash
+    command: >
+      filebeat -e -c /usr/share/filebeat/filebeat.yml --strict.perms=false
 
 networks:
   transcendence-network:
@@ -229,6 +554,9 @@ networks:
     driver: bridge
   monitoring-network:
     name: monitoring-network
+    driver: bridge
+  elk-network:
+    name: elk-network
     driver: bridge
 
 volumes:
@@ -240,6 +568,9 @@ volumes:
     driver: local
   rabbit-data:
     name: rabbit-data
+    driver: local
+  vault-logs:
+    name: vault-logs
     driver: local
   auth-db:
     name: auth-db
@@ -268,7 +599,24 @@ volumes:
     driver: local
   caddy-config:
     driver: local
+  es-data:
+    name: es-data
+    driver: local
 
 secrets:
   admin_password:
     file: ./secrets/admin_password
+  vault_root_token:
+    file: ./secrets/vault_root_token
+  vault_users_creds:
+    file: ./secrets/vault_users_creds
+  database_creds:
+    file: ./secrets/database_creds
+  smtp_creds:
+    file: ./secrets/smtp_creds
+  redis_creds:
+    file: ./secrets/redis_creds
+  services_urls:
+    file: ./secrets/services_urls
+  tunnel_token:
+    file: ./secrets/tunnel_token

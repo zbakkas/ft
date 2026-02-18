@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>403 Forbidden</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace;
+            background: #0d1117;
+            color: #c9d1d9;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .page {
+            text-align: center;
+            padding: 40px 20px;
+            max-width: 480px;
+        }
+        .error-code {
+            font-size: 8rem;
+            font-weight: 800;
+            color: #f85149;
+            line-height: 1;
+            letter-spacing: -4px;
+        }
+        .divider {
+            width: 60px;
+            height: 3px;
+            background: #f85149;
+            margin: 20px auto;
+            border-radius: 2px;
+        }
+        h1 {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: #f0f6fc;
+            margin-bottom: 12px;
+        }
+        .msg {
+            font-size: 0.9rem;
+            color: #8b949e;
+            line-height: 1.6;
+            margin-bottom: 28px;
+        }
+        .tag {
+            display: inline-block;
+            background: rgba(248, 81, 73, 0.15);
+            border: 1px solid rgba(248, 81, 73, 0.4);
+            color: #f85149;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            padding: 6px 16px;
+            border-radius: 4px;
+            margin-bottom: 24px;
+            font-family: 'Courier New', monospace;
+        }
+        .info {
+            text-align: left;
+            background: #161b22;
+            border: 1px solid #21262d;
+            border-radius: 6px;
+            padding: 16px 20px;
+            margin-bottom: 24px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.75rem;
+            line-height: 2;
+            color: #8b949e;
+        }
+        .info span {
+            color: #f85149;
+        }
+        .info .val {
+            color: #58a6ff;
+        }
+        a.back {
+            color: #58a6ff;
+            text-decoration: none;
+            font-size: 0.85rem;
+        }
+        a.back:hover { text-decoration: underline; }
+        .foot {
+            margin-top: 32px;
+            font-size: 0.65rem;
+            color: #30363d;
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <div class="error-code">403</div>
+        <div class="divider"></div>
+        <h1>Access Denied</h1>
+        <div class="tag" id="attack-tag">ATTACK DETECTED</div>
+        <p class="msg" id="attack-msg">
+            Your request has been blocked by the firewall.
+        </p>
+        <div class="info">
+            <span>status</span>  <span class="val">403 Forbidden</span><br>
+            <span>threat</span>  <span class="val" id="info-threat">malicious request</span><br>
+            <span>action</span>  <span class="val">blocked &amp; logged</span><br>
+            <span>engine</span>  <span class="val">ModSecurity + OWASP CRS</span><br>
+            <span>time</span>    <span class="val" id="info-time"></span>
+        </div>
+        <a href="/" class="back">&larr; go back</a>
+        <div class="foot">ft_transcendence WAF</div>
+    </div>
+
+    <script>
+        (function() {
+            var u = '';
+            try { u = decodeURIComponent(location.href); } catch(e) { u = location.href; }
+
+            var attacks = [
+                { tag: 'SQL INJECTION',       threat: 'sql injection',        msg: 'SQL code was detected in your request. Database manipulation is not allowed.', p: [/(\bor\b|\band\b).*(=|--|;)/i, /union.*select/i, /select.*from/i, /drop\s+table/i, /1\s*=\s*1/, /'\s*--/, /sleep\s*\(/i, /benchmark\s*\(/i] },
+                { tag: 'XSS ATTACK',          threat: 'cross-site scripting', msg: 'JavaScript injection was detected in your request. Script execution is blocked.', p: [/<script/i, /javascript\s*:/i, /on(error|load|click)\s*=/i, /alert\s*\(/i, /document\.cookie/i, /<img[^>]+onerror/i, /<svg[^>]+onload/i] },
+                { tag: 'LFI / PATH TRAVERSAL',threat: 'path traversal',       msg: 'An attempt to access restricted server files was detected. Directory traversal is blocked.', p: [/\.\.\//g, /\.\.%2[fF]/g, /etc\/passwd/i, /etc\/shadow/i, /proc\/self/i, /\.htaccess/i] },
+                { tag: 'COMMAND INJECTION',   threat: 'remote code execution',msg: 'System command execution was detected in your request. OS commands are blocked.', p: [/;\s*(cat|ls|id|whoami|bash|sh|curl|wget)\b/i, /\|\s*(cat|ls|id|bash)/i, /\$\([^)]+\)/, /system\s*\(/i, /exec\s*\(/i] },
+                { tag: 'LOG4J / JNDI',        threat: 'jndi injection',       msg: 'A Log4Shell exploit attempt was detected. JNDI lookups are blocked.', p: [/\$\{jndi:/i, /\$\{lower:/i, /\$\{env:/i] },
+                { tag: 'SSRF ATTACK',         threat: 'server-side request forgery', msg: 'An attempt to access internal resources was detected. Internal requests are blocked.', p: [/169\.254\.169\.254/i, /gopher:\/\//i, /\[::1\]/i] },
+                { tag: 'RFI ATTACK',          threat: 'remote file inclusion',msg: 'An attempt to include a remote file was detected. External file loading is blocked.', p: [/php:\/\/(input|filter)/i, /expect:\/\//i, /data:\/\//i] }
+            ];
+
+            var d = null;
+            for (var i = 0; i < attacks.length && !d; i++)
+                for (var j = 0; j < attacks[i].p.length; j++)
+                    if (attacks[i].p[j].test(u)) { d = attacks[i]; break; }
+
+            if (d) {
+                document.getElementById('attack-tag').textContent = d.tag;
+                document.getElementById('attack-msg').textContent = d.msg;
+                document.getElementById('info-threat').textContent = d.threat;
+            }
+
+            var n = new Date();
+            document.getElementById('info-time').textContent =
+                n.toISOString().replace('T',' ').substring(0,19) + ' UTC';
+        })();
+    </script>
+</body>
+</html>

@@ -1,12 +1,13 @@
 import PlayerProgressCard from "@/app/components/player-progress-card";
+import { getGatewayUrl } from "@/lib/gateway";
 import { cookies } from "next/dist/server/request/cookies";
 import { ReadonlyRequestCookies } from "next/dist/server/web/spec-extension/adapters/request-cookies";
+import MatcheHistory from "../components/MatcheHistory";
+import ChangePasswordModal from "./ChangePasswordModal";
 import LogOutButton from "./logout";
 import RelationshipManager from "./rlmanager";
-import UserImage from "./UserImage";
 import Translated from "./Translated";
-import MatcheHistory from "../components/MatcheHistory";
-import { getGatewayUrl } from "@/lib/gateway";
+import UserImage from "./UserImage";
 
 export default async function Dashboard() {
   const cookieStore: ReadonlyRequestCookies = await cookies();
@@ -46,7 +47,10 @@ export default async function Dashboard() {
           <UserImage />
           <div className="border-2 border-white sm:ml-4 mt-4 sm:mt-0 rounded-xl h-full w-full flex justify-center items-center">
             <div className="p-6 w-fit h-fit text-white text-center">
-              <h1 className="text-4xl font-bold">{username}</h1>
+              <div className="flex items-center justify-center gap-3">
+                <h1 className="text-4xl font-bold">{username}</h1>
+                <ChangePasswordModal />
+              </div>
               {/* <Switch2FA /> */}
               <Translated />
               <LogOutButton />

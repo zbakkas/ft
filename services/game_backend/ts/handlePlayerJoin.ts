@@ -17,7 +17,8 @@ import {
   BALL_PHYSICS,
   waitingPlayers3d,
   invitedPlayers,
-  invitedPlayersTournament
+  invitedPlayersTournament,
+  playersInGame
 } from './types';
 import { broadcastGameState, broadcastGameState_2vs, updateGameState, updateGameState_2vs2 } from './updateGameState';
 
@@ -127,6 +128,7 @@ export const  handlePlayerJoin = (connection: any, playerId: string, fastify: Fa
         if (index !== -1) {
           console.log(`Invitation for room ${room_ID} expired. Removing player ${playerId}.`);
           invitedPlayers.splice(index, 1);
+          playersInGame.delete(playerId);
           // Optional: Notify the player that the invitation expired
           if (connection.readyState === 1) { // 1 = OPEN
              connection.send(JSON.stringify({

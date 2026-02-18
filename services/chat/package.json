@@ -15,7 +15,6 @@
     "amqplib": "^0.10.9",
     "dotenv": "^17.2.1",
     "fastify": "^5.4.0",
-    "ioredis": "^5.6.1",
     "pino-pretty": "^13.0.0"
   },
   "type": "module",

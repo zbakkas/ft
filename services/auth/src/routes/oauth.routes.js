@@ -1,9 +1,9 @@
 import axios from "axios";
-import { sendError, sendSuccess } from "../utils/fastify.js";
-import { authService } from "../services/auth.services.js";
 import { prisma } from "../db/prisma.js";
-import { environ } from "../utils/environ.js";
+import { authService } from "../services/auth.services.js";
 import { getQueue, QueueType } from "../services/queue.services.js";
+import { environ } from "../utils/environ.js";
+import { sendError, sendSuccess } from "../utils/fastify.js";
 
 const providers = {
   google: {
@@ -53,7 +53,7 @@ export default (fastify, opts, done) => {
           },
           {
             headers: { Accept: "application/json" },
-          }
+          },
         );
         const [{ data: profile }, { data: emails }] = await Promise.all([
           axios.get(config.profileUrl, {
@@ -93,7 +93,7 @@ export default (fastify, opts, done) => {
     const { success, reason, oAuthProfile } = await getOAuthProfile(
       provider,
       code,
-      `${environ.API_GATEWAY_URL}/api/v1/auth/oauth/${provider}/callback`
+      `${environ.API_GATEWAY_URL}/api/v1/auth/oauth/${provider}/callback`,
     );
     if (!success) return sendError(reply, 400, reason);
     const userExists = await prisma.user.findFirst({
@@ -120,13 +120,13 @@ export default (fastify, opts, done) => {
       userExists &&
       userExists.OAuthLink.some(
         (link) =>
-          link.providerId === oAuthProfile.id && link.provider === provider
+          link.providerId === oAuthProfile.id && link.provider === provider,
       )
     ) {
       const { accessToken, refreshToken } = await authService.newUserSession(
         fastify,
         request,
-        userExists.id
+        userExists.id,
       );
       return sendSuccess(reply, 200, "User already exists!", {
         accessToken,
@@ -136,7 +136,7 @@ export default (fastify, opts, done) => {
       return sendError(
         reply,
         400,
-        `Account with ${oAuthProfile.email} already exists! log in to it and link your account to it`
+        `Account with ${oAuthProfile.email} already exists! log in to it and link your account to it`,
       );
     }
     const created_user = await prisma.user.create({
@@ -155,13 +155,13 @@ export default (fastify, opts, done) => {
       email: oAuthProfile.email,
       template: "welcome",
       context: {
-        username: oAuthProfile.name,
+        link: environ.CLIENT_URL,
       },
     });
     const { accessToken, refreshToken } = await authService.newUserSession(
       fastify,
       request,
-      created_user.id
+      created_user.id,
     );
     return sendSuccess(reply, 201, "User successfully created!", {
       accessToken,

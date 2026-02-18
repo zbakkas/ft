@@ -18,6 +18,9 @@ import {
   waitingPlayers,
   waitingPlayers2vs2,
   waitingPlayers3d,
+  playersInGame,
+  invitedPlayers,
+  invitedPlayersTournament,
   COUNTDOWN_TIME
 } from './types';
 
@@ -25,6 +28,9 @@ import { fastify } from '../server';
 
 export const handlePlayerDisconnect = (playerId: string) => {
   console.log(`Player ${playerId} disconnecting...`);
+
+  // Mark player as no longer busy
+  playersInGame.delete(playerId);
   
   // Remove from waiting list if present
   const waitingIndex = waitingPlayers.findIndex(p => p.playerId === playerId);
@@ -43,6 +49,22 @@ export const handlePlayerDisconnect = (playerId: string) => {
   if (waitingIndex2vs2 !== -1) {
     waitingPlayers2vs2.splice(waitingIndex2vs2, 1);
     console.log(`Removed ${playerId} from 2vs2 waiting list. Waiting players: ${waitingPlayers2vs2.length}`);
+    return;
+  }
+  
+  // Remove from invited list if present
+  const invitedIndex = invitedPlayers.findIndex(p => p.playerId === playerId || p.player_two_ID === playerId);
+  if (invitedIndex !== -1) {
+    invitedPlayers.splice(invitedIndex, 1);
+    console.log(`Removed ${playerId} from invited players list.`);
+    return;
+  }
+
+  // Remove from invited tournament list if present
+  const invitedTournamentIndex = invitedPlayersTournament.findIndex(p => p.player_one_ID === playerId || p.player_two_ID === playerId);
+  if (invitedTournamentIndex !== -1) {
+    invitedPlayersTournament.splice(invitedTournamentIndex, 1);
+    console.log(`Removed ${playerId} from invited tournament players list.`);
     return;
   }
   

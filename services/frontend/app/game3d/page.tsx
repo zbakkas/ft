@@ -1,6 +1,7 @@
 import Game3D from './game3D_2'
 import Error from "@/app/components/Error";
 import { verify } from "@/lib/auth";
+import NotificationPopover from '../components/NotificationPopover';
 
 export default async function Home() {
   let isLogged: Boolean = await verify();
@@ -10,6 +11,9 @@ export default async function Home() {
     }
   return (
     <main>
+      <div className="display-none absolute top-0 right-0">
+        <NotificationPopover />
+      </div>
       <Game3D />
     </main>
   )

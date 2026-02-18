@@ -18,8 +18,5 @@ RUN npm run build
 # Expose port (adjust as needed)
 EXPOSE 3007
 
-# Create volume for database persistence
-VOLUME ["/app"]
-
 # Start the server
 CMD ["npm", "start"]

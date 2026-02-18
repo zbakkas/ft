@@ -11,6 +11,9 @@ const generateOTP = () => {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
 };
 
+const hashToken = (token) =>
+  crypto.createHash("sha256").update(token).digest("hex");
+
 function generateBase64Token(length) {
   const bytesNeeded = Math.ceil((length * 3) / 4);
   const randomBytes = crypto.randomBytes(bytesNeeded);
@@ -34,14 +37,16 @@ const createOTP = async (prisma, userId, type, expiresIn = 4) => {
     where: { userId, type, deletedAt: null },
     data: { deletedAt: new Date() },
   });
-  return prisma.verificationToken.create({
+  const rawToken = generateBase64Token(100);
+  const created = await prisma.verificationToken.create({
     data: {
-      token: generateBase64Token(100),
+      token: hashToken(rawToken),
       userId,
       expiresAt,
       type,
     },
   });
+  return { ...created, token: rawToken };
 };
 
 /**
@@ -59,7 +64,7 @@ const verifyOTP = async (userId, type, token) => {
   });
   if (!record || record.expiresAt < new Date())
     return { valid: false, reason: "Invalid or expired OTP" };
-  if (record.token !== token) {
+  if (record.token !== hashToken(token)) {
     await prisma.verificationToken.update({
       where: {
         id: record.id,
@@ -81,7 +86,32 @@ const verifyOTP = async (userId, type, token) => {
   return { valid: true };
 };
 
+const verifyOTPByToken = async (type, token) => {
+  const hashedToken = hashToken(token);
+  const record = await prisma.verificationToken.findFirst({
+    where: {
+      type,
+      token: hashedToken,
+      attempts: { lt: 3 },
+      deletedAt: null,
+    },
+  });
+  if (!record || record.expiresAt < new Date())
+    return { valid: false, reason: "Invalid or expired OTP" };
+
+  await prisma.verificationToken.update({
+    where: {
+      id: record.id,
+    },
+    data: {
+      deletedAt: new Date(),
+    },
+  });
+  return { valid: true, userId: record.userId };
+};
+
 export default {
   createOTP,
   verifyOTP,
+  verifyOTPByToken,
 };
