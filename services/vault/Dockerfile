@@ -5,6 +5,7 @@ RUN apk add --no-cache curl openssl wget bash su-exec
 
 COPY ./services/vault/init-vault.sh /scripts/init-vault.sh
 COPY ./services/vault/entrypoint.sh /entrypoint-wrapper.sh
+RUN sed -i 's/\r$//' /scripts/init-vault.sh /entrypoint-wrapper.sh
 RUN chmod +x /scripts/init-vault.sh /entrypoint-wrapper.sh
 
 RUN mkdir -p /scripts/approle /vault/logs /run/secrets && \

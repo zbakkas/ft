@@ -533,7 +533,7 @@ export default function Game3D() {
                 if (myPlayer)
                 {
                   setP_me_PaddleY(myPlayer.paddleY);
-                  P_2_paddleY_REF.current = myPlayer.paddleY;
+                  P_me_paddleY_REF.current = myPlayer.paddleY;
                   setMyScore(myPlayer.score);
                 } 
                 if (opponent) 

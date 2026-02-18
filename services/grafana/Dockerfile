@@ -12,6 +12,8 @@ WORKDIR /
 
 USER root
 
+RUN sed -i 's/\r$//' setup_grafana.sh
+
 RUN --mount=type=secret,id=admin_password,target=/run/secrets/admin_password bash setup_grafana.sh
 
 EXPOSE 3000

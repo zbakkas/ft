@@ -7,6 +7,8 @@ RUN apk add --no-cache curl bash
 COPY configure-waf.sh /configure-waf.sh
 COPY pages/blocked.html /usr/share/nginx/html/blocked.html
 
+RUN sed -i 's/\r$//' /configure-waf.sh
+
 RUN chmod +x /configure-waf.sh && \
     mkdir -p /var/log/modsec /var/log/nginx
 

@@ -371,20 +371,21 @@ const handlePaddleMove_3D = (playerId: string, direction: number) => {
 
   if (!playerRoom || !player) return;
 
-  // 🔧 FIX: Actually update the player's paddle position
-  // If player 2, un-mirror the direction before saving
+  // Update the player's paddle position with mirroring for player index 1
+  let newZ = direction;
   if (player.playerIndex === 1) {
-    player.paddleY_3d = -direction - 57;
-  } else {
-    player.paddleY_3d = direction;
+    newZ = -direction - 57;
   }
+  
+  // Apply bounds checking to keep paddle on the table
+  const minZ = -50;
+  const maxZ = -7;
+  player.paddleY_3d = Math.max(minZ, Math.min(maxZ, newZ));
   
   // Also update in the gameState players map if it exists there
   if (playerRoom.gameState.players.has(playerId)) {
     playerRoom.gameState.players.get(playerId)!.paddleY_3d = player.paddleY_3d;
   }
-
-  // console.log(`Player ${playerId} moved paddle to position: ${direction}`);
 
   // Now broadcast the updated game state
   broadcastGameState_3D(playerRoom);
@@ -472,14 +473,14 @@ const updateBallPhysics = (room: GameRoom) => {
   if(player1 && player2 )
   {
   // Ball passed Player 2’s side → Player 1 scores
-  if (ball.x < -100) {
+  if (ball.x < -75) {
     player1.score++;
     resetServerBall(room);
     console.log(`Server: Player 1 scored! New score: ${player1.score}`);
   }
 
   // Ball passed Player 1’s side → Player 2 scores
-  if (ball.x > 100) {
+  if (ball.x > 75) {
     player2.score++;
     resetServerBall(room);
     console.log(`Server: Player 2 scored! New score: ${player2.score}`);
@@ -531,12 +532,12 @@ const checkServerPaddleCollisions = (room: GameRoom) => {
   const player2 = players.find(p => p.playerIndex === 1); // Left paddle
 
   // Player 1 paddle collision (right side)
-  if (player1 && ball.x > 55 && 
-      Math.abs(ball.z - player1.paddleY_3d) < 8 && 
-      Math.abs(ball.y - 50) < 16 && // paddle height
+  if (player1 && ball.x > 57.5 && 
+      Math.abs(ball.z - player1.paddleY_3d) < 6 && 
+      Math.abs(ball.y - 50) < 8 && // paddle height
       ball.velocityX > 0) {
     
-    const hitOffset = (ball.z - player1.paddleY_3d) / 8;
+    const hitOffset = (ball.z - player1.paddleY_3d) / 6;
     ball.velocityX = -Math.abs(ball.velocityX) * 1.05;
     ball.velocityY = Math.random() * (0.7 - 0.25) + 0.25;
     ball.velocityZ = hitOffset * 1.0;
@@ -545,12 +546,12 @@ const checkServerPaddleCollisions = (room: GameRoom) => {
   }
 
   // Player 2 paddle collision (left side)
-  if (player2 && ball.x < -55 && 
-      Math.abs(ball.z - player2.paddleY_3d) < 8 && 
-      Math.abs(ball.y - 50) < 16 &&
+  if (player2 && ball.x < -57.5 && 
+      Math.abs(ball.z - player2.paddleY_3d) < 6 && 
+      Math.abs(ball.y - 50) < 8 &&
       ball.velocityX < 0) {
     
-    const hitOffset = (ball.z - player2.paddleY_3d) / 8;
+    const hitOffset = (ball.z - player2.paddleY_3d) / 6;
     ball.velocityX = Math.abs(ball.velocityX) * 1.05;
     ball.velocityY = Math.random() * (0.7 - 0.25) + 0.25;
     ball.velocityZ = hitOffset * 1.0;
