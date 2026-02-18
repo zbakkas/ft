@@ -63,11 +63,14 @@ export const updateGameState = (room: GameRoom ,fastify :FastifyInstance) => {
       gameState.ballY + BALL_SIZE >= player1.paddleY &&
       gameState.ballY <= player1.paddleY + PADDLE_HEIGHT
     ) {
+      // Speed increase on hit (max speed 15)
+      gameState.ballVelocityX = -gameState.ballVelocityX;
+      if (Math.abs(gameState.ballVelocityX) < 15) {
+        gameState.ballVelocityX *= 1.05;
+      }
+      
       // Proper position correction - ensure ball is fully outside paddle
       gameState.ballX = PADDLE_WIDTH + 1;
-      
-      // Ensure minimum bounce velocity and proper direction
-      gameState.ballVelocityX = Math.max(Math.abs(gameState.ballVelocityX), 3);
       
       // Calculate spin based on hit position with bounds checking
       const ballCenterY = gameState.ballY + BALL_SIZE / 2;
@@ -75,11 +78,12 @@ export const updateGameState = (room: GameRoom ,fastify :FastifyInstance) => {
       const hitOffset = (ballCenterY - paddleCenterY) / (PADDLE_HEIGHT / 2);
       const clampedOffset = Math.max(-0.8, Math.min(0.8, hitOffset)); // Clamp to prevent extreme angles
       
-      gameState.ballVelocityY = clampedOffset * BALL_SPEED * 1.5;
+      // Apply the same proportional speed increase to Y velocity
+      gameState.ballVelocityY = clampedOffset * Math.abs(gameState.ballVelocityX) * 1.2;
       
       // Ensure minimum Y velocity to prevent horizontal-only movement
-      if (Math.abs(gameState.ballVelocityY) < 1) {
-        gameState.ballVelocityY = gameState.ballVelocityY >= 0 ? 1 : -1;
+      if (Math.abs(gameState.ballVelocityY) < 1.5) {
+        gameState.ballVelocityY = gameState.ballVelocityY >= 0 ? 1.5 : -1.5;
       }
     }
 
@@ -92,11 +96,14 @@ export const updateGameState = (room: GameRoom ,fastify :FastifyInstance) => {
       gameState.ballY + BALL_SIZE >= player2.paddleY &&
       gameState.ballY <= player2.paddleY + PADDLE_HEIGHT
     ) {
+      // Speed increase on hit (max speed 15)
+      gameState.ballVelocityX = -gameState.ballVelocityX;
+      if (Math.abs(gameState.ballVelocityX) < 15) {
+        gameState.ballVelocityX *= 1.05;
+      }
+
       // Proper position correction - ensure ball is fully outside paddle
       gameState.ballX = CANVAS_WIDTH - PADDLE_WIDTH - BALL_SIZE - 1;
-      
-      // Ensure minimum bounce velocity and proper direction
-      gameState.ballVelocityX = -Math.max(Math.abs(gameState.ballVelocityX), 3);
       
       // Calculate spin based on hit position with bounds checking
       const ballCenterY = gameState.ballY + BALL_SIZE / 2;
@@ -104,11 +111,12 @@ export const updateGameState = (room: GameRoom ,fastify :FastifyInstance) => {
       const hitOffset = (ballCenterY - paddleCenterY) / (PADDLE_HEIGHT / 2);
       const clampedOffset = Math.max(-0.8, Math.min(0.8, hitOffset)); // Clamp to prevent extreme angles
       
-      gameState.ballVelocityY = clampedOffset * BALL_SPEED * 1.5;
+      // Apply the same proportional speed increase to Y velocity
+      gameState.ballVelocityY = clampedOffset * Math.abs(gameState.ballVelocityX) * 1.2;
       
       // Ensure minimum Y velocity to prevent horizontal-only movement
-      if (Math.abs(gameState.ballVelocityY) < 1) {
-        gameState.ballVelocityY = gameState.ballVelocityY >= 0 ? 1 : -1;
+      if (Math.abs(gameState.ballVelocityY) < 1.5) {
+        gameState.ballVelocityY = gameState.ballVelocityY >= 0 ? 1.5 : -1.5;
       }
     }
 
@@ -249,11 +257,14 @@ export const updateGameState_2vs2 = (room: GameRoom) => {
       );
 
       if (hittingPlayer) {
+        // Speed increase on hit (max speed 15)
+        gameState.ballVelocityX = -gameState.ballVelocityX;
+        if (Math.abs(gameState.ballVelocityX) < 15) {
+          gameState.ballVelocityX *= 1.05;
+        }
+
         // Proper position correction - ensure ball is fully outside paddle
         gameState.ballX = PADDLE_WIDTH + 1;
-        
-        // Ensure minimum bounce velocity and proper direction
-        gameState.ballVelocityX = Math.max(Math.abs(gameState.ballVelocityX), 3);
         
         // Calculate spin based on hit position with bounds checking
         const ballCenterY = gameState.ballY + BALL_SIZE / 2;
@@ -261,11 +272,12 @@ export const updateGameState_2vs2 = (room: GameRoom) => {
         const hitOffset = (ballCenterY - paddleCenterY) / (PADDLE_HEIGHT / 2);
         const clampedOffset = Math.max(-0.8, Math.min(0.8, hitOffset)); // Clamp to prevent extreme angles
         
-        gameState.ballVelocityY = clampedOffset * BALL_SPEED * 1.5;
+        // Apply the same proportional speed increase to Y velocity
+        gameState.ballVelocityY = clampedOffset * Math.abs(gameState.ballVelocityX) * 1.2;
         
         // Ensure minimum Y velocity to prevent horizontal-only movement
-        if (Math.abs(gameState.ballVelocityY) < 1) {
-          gameState.ballVelocityY = gameState.ballVelocityY >= 0 ? 1 : -1;
+        if (Math.abs(gameState.ballVelocityY) < 1.5) {
+          gameState.ballVelocityY = gameState.ballVelocityY >= 0 ? 1.5 : -1.5;
         }
       }
     }
@@ -282,11 +294,14 @@ export const updateGameState_2vs2 = (room: GameRoom) => {
       );
 
       if (hittingPlayer) {
+        // Speed increase on hit (max speed 15)
+        gameState.ballVelocityX = -gameState.ballVelocityX;
+        if (Math.abs(gameState.ballVelocityX) < 15) {
+          gameState.ballVelocityX *= 1.05;
+        }
+
         // Proper position correction - ensure ball is fully outside paddle
         gameState.ballX = CANVAS_WIDTH - PADDLE_WIDTH - BALL_SIZE - 1;
-        
-        // Ensure minimum bounce velocity and proper direction
-        gameState.ballVelocityX = -Math.max(Math.abs(gameState.ballVelocityX), 3);
         
         // Calculate spin based on hit position with bounds checking
         const ballCenterY = gameState.ballY + BALL_SIZE / 2;
@@ -294,11 +309,12 @@ export const updateGameState_2vs2 = (room: GameRoom) => {
         const hitOffset = (ballCenterY - paddleCenterY) / (PADDLE_HEIGHT / 2);
         const clampedOffset = Math.max(-0.8, Math.min(0.8, hitOffset)); // Clamp to prevent extreme angles
         
-        gameState.ballVelocityY = clampedOffset * BALL_SPEED * 1.5;
+        // Apply the same proportional speed increase to Y velocity
+        gameState.ballVelocityY = clampedOffset * Math.abs(gameState.ballVelocityX) * 1.2;
         
         // Ensure minimum Y velocity to prevent horizontal-only movement
-        if (Math.abs(gameState.ballVelocityY) < 1) {
-          gameState.ballVelocityY = gameState.ballVelocityY >= 0 ? 1 : -1;
+        if (Math.abs(gameState.ballVelocityY) < 1.5) {
+          gameState.ballVelocityY = gameState.ballVelocityY >= 0 ? 1.5 : -1.5;
         }
       }
     }

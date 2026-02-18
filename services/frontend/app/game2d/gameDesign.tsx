@@ -250,7 +250,7 @@ export default function GameDesign_m({
                   top: P_me_paddleY,
                   width: PADDLE_WIDTH,
                   height: PADDLE_HEIGHT,
-                  transition: 'top 0.1s linear' // Keep paddle smooth
+                  // Removed transition to prevent visual lag
                 }}
               />
 
@@ -262,7 +262,7 @@ export default function GameDesign_m({
                   top: P_2_paddleY,
                   width: PADDLE_WIDTH,
                   height: PADDLE_HEIGHT,
-                  transition: 'top 0.1s linear' // Keep paddle smooth
+                  // Removed transition to prevent visual lag
                 }}
               />
 
